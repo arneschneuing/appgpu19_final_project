@@ -18,7 +18,6 @@ install-sh
 libtool
 *.log
 ltmain.sh
-Makefile
 Makefile.in
 missing
 *.o
