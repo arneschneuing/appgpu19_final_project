@@ -34,3 +34,4 @@ vgcore.*
 *.a
 data/
 *.vtk
+*.code-workspace
