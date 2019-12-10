@@ -1,0 +1,16 @@
+#!/bin/bash
+
+while getopts ":h" opt; do
+  case $opt in
+    h)
+      echo "Usage: compare_outfiles.sh file1 file2" >&2
+      exit 1
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+  esac
+done
+
+cmp --silent $1 $2 && echo '### SUCCESS: Files are identical! ###' || echo '### Files are different! ###'
