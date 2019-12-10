@@ -347,7 +347,7 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
                     temp[ii][jj][kk] = part->u[i] * part->w[i] * weight[ii][jj][kk];
         for (int ii = 0; ii < 2; ii++)
             for (int jj = 0; jj < 2; jj++)
-                for (int k = 0; k < 2; k++)
+                for (int kk = 0; kk < 2; kk++)
                     ids->pxz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
