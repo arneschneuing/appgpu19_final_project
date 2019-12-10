@@ -283,10 +283,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->u[i] * weight[ii][jj][kk];
         
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->Jx[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->Jx[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         ////////////////////////////
@@ -295,10 +295,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->v[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->Jy[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->Jy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         
@@ -308,10 +308,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->w[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->Jz[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->Jz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         ////////////////////////////
@@ -320,10 +320,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->u[i] * part->u[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->pxx[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->pxx[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         ////////////////////////////
@@ -332,10 +332,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->u[i] * part->v[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->pxy[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->pxy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         
@@ -345,10 +345,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->u[i] * part->w[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
                 for (int k = 0; k < 2; k++)
-                    ids->pxz[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+                    ids->pxz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         /////////////////////////////
@@ -357,10 +357,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->v[i] * part->v[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->pyy[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->pyy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         /////////////////////////////
@@ -369,10 +369,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->v[i] * part->w[i] * weight[ii][jj][kk];
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-                for (int k = 0; k < 2; k++)
-                    ids->pyz[ix - i][iy - j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii = 0; ii < 2; ii++)
+            for (int jj = 0; jj < 2; jj++)
+                for (int kk = 0; kk < 2; kk++)
+                    ids->pyz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
         
         
         /////////////////////////////
@@ -381,10 +381,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                     temp[ii][jj][kk] = part->w[i] * part->w[i] * weight[ii][jj][kk];
-        for (int i=0; i < 2; i++)
-            for (int j=0; j < 2; j++)
-                for(int k=0; k < 2; k++)
-                    ids->pzz[ix -i][iy -j][iz - k] += weight[i][j][k] * grd->invVOL;
+        for (int ii=0; ii < 2; ii++)
+            for (int jj=0; jj < 2; jj++)
+                for(int kk=0; kk < 2; kk++)
+                    ids->pzz[ix -ii][iy -jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
     
     }
    
