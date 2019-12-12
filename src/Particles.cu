@@ -118,10 +118,10 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
                 xi[1]   = grd->XN[ix][iy][iz] - part->x[id];
                 eta[1]  = grd->YN[ix][iy][iz] - part->y[id];
                 zeta[1] = grd->ZN[ix][iy][iz] - part->z[id];
-                for (int i = 0; i < 2; i++)
-                    for (int j = 0; j < 2; j++)
-                        for (int k = 0; k < 2; k++)
-                            weight[i][j][k] = xi[i] * eta[j] * zeta[k] * grd->invVOL;
+                for (int ii = 0; ii < 2; ii++)
+                    for (int jj = 0; jj < 2; jj++)
+                        for (int kk = 0; kk < 2; kk++)
+                            weight[ii][jj][kk] = xi[ii] * eta[jj] * zeta[kk] * grd->invVOL;
                 
                 // set to zero local electric and magnetic field
                 Exl=0.0, Eyl = 0.0, Ezl = 0.0, Bxl = 0.0, Byl = 0.0, Bzl = 0.0;
