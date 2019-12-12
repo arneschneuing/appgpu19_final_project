@@ -2,6 +2,7 @@
 #include "Alloc.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "GPUAllocation.h"
 
 #define TPB 128
 
@@ -100,7 +101,7 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
     // start subcycling
     for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
         // move each particle with new fields
-        if (id < part->nop{
+        if (id < part->nop){
             xptilde = part->x[id];
             yptilde = part->y[id];
             zptilde = part->z[id];
@@ -150,9 +151,9 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
                 vptilde = (vt+qomdt2*(wt*Bxl -ut*Bzl + qomdt2*udotb*Byl))*denom;
                 wptilde = (wt+qomdt2*(ut*Byl -vt*Bxl + qomdt2*udotb*Bzl))*denom;
                 // update position
-                part->x[i] = xptilde + uptilde*dto2;
-                part->y[i] = yptilde + vptilde*dto2;
-                part->z[i] = zptilde + wptilde*dto2;
+                part->x[id] = xptilde + uptilde*dto2;
+                part->y[id] = yptilde + vptilde*dto2;
+                part->z[id] = zptilde + wptilde*dto2;
                 
                 
             } // end of iteration
@@ -243,18 +244,15 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     particle_move2gpu(part, part_gpu);
 
     EMfield* field_gpu;
-    cudaMalloc(&field_gpu, sizeof(EMfield));
+    emfield_move2gpu(field, field_gpu, grd);
 
     grid* grd_gpu;
-    cudaMalloc(&grd_gpu, sizeof(grid));
+    grid_move2gpu(grd, grd_gpu);
 
     parameters* param_gpu;
     cudaMalloc(&param_gpu, sizeof(parameters));
 
     // Move data to the GPU
-    cudaMemcpy(part_gpu, part, sizeof(particles), cudaMemcpyHostToDevice);
-    cudaMemcpy(field_gpu, field, sizeof(EMfield), cudaMemcpyHostToDevice);
-    cudaMemcpy(grd_gpu, grd, sizeof(grid), cudaMemcpyHostToDevice);
     cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
 
     // Call kernel
@@ -262,14 +260,14 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
-    cudaMemcpy(field, field_gpu, sizeof(EMfield), cudaMemcpyDeviceToHost);
-    cudaMemcpy(grd, grd_gpu, sizeof(grid), cudaMemcpyDeviceToHost);
+    emfield_move2cpu(field_gpu, field, grd);
+    grid_move2cpu(grd_gpu, grd);
     cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
-    cudaFree(field_gpu);
-    cudaFree(grd_gpu);
+    emfield_deallocate_gpu(field_gpu);
+    grid_deallocate_gpu(grd_gpu);
     cudaFree(param_gpu);
 
     return 0;
