@@ -241,14 +241,14 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 {
     // Allocate memory on the GPU
     particles* part_gpu;
-    particle_move2gpu(part, part_gpu);
+    particle_move2gpu(part, &part_gpu);
 
     EMfield* field_gpu;
-    emfield_move2gpu(field, field_gpu, grd);
+    emfield_move2gpu(field, &field_gpu, grd);
 
     grid* grd_gpu;
-    grid_move2gpu(grd, grd_gpu);
-
+    grid_move2gpu(grd, &grd_gpu);
+    
     parameters* param_gpu;
     cudaMalloc(&param_gpu, sizeof(parameters));
 
@@ -266,9 +266,12 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
+    std::cout << "Hello" << std::endl;
     emfield_deallocate_gpu(field_gpu);
     grid_deallocate_gpu(grd_gpu);
     cudaFree(param_gpu);
+
+    std::cout << "NO segmentation fault :D" << std::endl;
 
     return 0;
 }
