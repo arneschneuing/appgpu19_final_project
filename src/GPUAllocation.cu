@@ -7,49 +7,67 @@ void particle_move2gpu(struct particles* part, struct particles* part_gpu)
     cudaMalloc(&part_gpu, sizeof(particles)); 
 
     // Allocate arrays on the device
-    FPfield* x_gpu;
+    FPpart* x_gpu;
     cudaMalloc(&x_gpu, sizeof(FPpart)*part->npmax);
+
+    FPpart* y_gpu;
+    cudaMalloc(&y_gpu, sizeof(FPpart)*part->npmax);
+
+    FPpart* z_gpu;
+    cudaMalloc(&z_gpu, sizeof(FPpart)*part->npmax);
+
+    FPpart* u_gpu;
+    cudaMalloc(&u_gpu, sizeof(FPpart)*part->npmax);
+
+    FPpart* v_gpu;
+    cudaMalloc(&v_gpu, sizeof(FPpart)*part->npmax);
+
+    FPpart* w_gpu;
+    cudaMalloc(&w_gpu, sizeof(FPpart)*part->npmax);
+
+    FPinterp* q_gpu;
+    cudaMalloc(&q_gpu, sizeof(FPinterp)*part->npmax);
 
     // Copy array values to the device
     cudaMemcpy(x_gpu, part->x, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(y_gpu, part->y, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(z_gpu, part->z, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(u_gpu, part->u, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(v_gpu, part->v, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(w_gpu, part->w, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
+    cudaMemcpy(q_gpu, part->q, sizeof(FPinterp)*part->npmax, cudaMemcpyHostToDevice);
+
+
 
     // Create temporary copy of host pointers
-    FPfield* x_host = part->x;
+    FPpart* x_host = part->x;
+    FPpart* y_host = part->y;
+    FPpart* z_host = part->z;
+    FPpart* u_host = part->u;
+    FPpart* v_host = part->v;
+    FPpart* w_host = part->w;
+    FPinterp* q_host = part->q;
 
     // Point to device pointer in host struct
     part->x = x_gpu;
+    part->y = y_gpu;
+    part->z = z_gpu;
+    part->u = u_gpu;
+    part->v = v_gpu;
+    part->w = w_gpu;
+    part->q = q_gpu;
 
     // Move data to the GPU (pointers still pointing to host addresses)
     cudaMemcpy(part_gpu, part, sizeof(particles), cudaMemcpyHostToDevice); 
 
     // Restore host pointer
     part->x = x_host;
-
-    std::cout << "Hello" << std::endl;
-    
-    // move particle arrays
-    cudaMalloc(&part_gpu->x, sizeof(FPpart)*part->npmax);
-    std::cout << "Hello" << std::endl;
-    cudaMemcpy(part_gpu->x, part->x, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    std::cout << "Hello" << std::endl;
-
-    cudaMalloc(&part_gpu->y, sizeof(FPpart)*part->npmax);
-    cudaMemcpy(part_gpu->y, part->y, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-
-    cudaMalloc(&part_gpu->z, sizeof(FPpart)*part->npmax);
-    cudaMemcpy(part_gpu->z, part->z, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-
-    cudaMalloc(&part_gpu->u, sizeof(FPpart)*part->npmax);
-    cudaMemcpy(part_gpu->u, part->u, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-
-    cudaMalloc(&part_gpu->v, sizeof(FPpart)*part->npmax);
-    cudaMemcpy(part_gpu->v, part->v, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-
-    cudaMalloc(&part_gpu->w, sizeof(FPpart)*part->npmax);
-    cudaMemcpy(part_gpu->w, part->w, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-
-    cudaMalloc(&part_gpu->q, sizeof(FPinterp)*part->npmax);
-    cudaMemcpy(part_gpu->q, part->q, sizeof(FPinterp)*part->npmax, cudaMemcpyHostToDevice);    
+    part->y = y_host;
+    part->z = z_host;
+    part->u = u_host;
+    part->v = v_host;
+    part->w = w_host;
+    part->q = q_host; 
 }
 
 /** move particle array to CPU */
@@ -93,27 +111,62 @@ void particle_deallocate_gpu(struct particles* part_gpu)
 void emfield_move2gpu(struct EMfield* field, struct EMfield* field_gpu, struct grid* grd)
 {   
     // Allocate memory on the GPU
-    cudaMalloc(&field_gpu, sizeof(EMfield));   
-    
-    // Copy arrays
-    cudaMalloc(&field_gpu->Ex_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Ex_flat, field->Ex_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMalloc(&field_gpu, sizeof(EMfield));
 
-    cudaMalloc(&field_gpu->Ey_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Ey_flat, field->Ey_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    // Allocate arrays on the device
+    FPfield* Ex_flat_gpu;
+    cudaMalloc(&Ex_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
 
-    cudaMalloc(&field_gpu->Ez_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Ez_flat, field->Ez_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    FPfield* Ey_flat_gpu;
+    cudaMalloc(&Ey_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
 
-    cudaMalloc(&field_gpu->Bxn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Bxn_flat, field->Bxn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    FPfield* Ez_flat_gpu;
+    cudaMalloc(&Ez_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
 
-    cudaMalloc(&field_gpu->Byn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Byn_flat, field->Byn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    FPfield* Bxn_flat_gpu;
+    cudaMalloc(&Bxn_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
 
-    cudaMalloc(&field_gpu->Bzn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
-    cudaMemcpy(field_gpu->Bzn_flat, field->Bzn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
-   
+    FPfield* Byn_flat_gpu;
+    cudaMalloc(&Byn_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
+
+    FPfield* Bzn_flat_gpu;
+    cudaMalloc(&Bzn_flat_gpu, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn);
+
+    // Copy array values to the device
+    cudaMemcpy(Ex_flat_gpu, field->Ex_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMemcpy(Ey_flat_gpu, field->Ey_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMemcpy(Ez_flat_gpu, field->Ez_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMemcpy(Bxn_flat_gpu, field->Bxn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMemcpy(Byn_flat_gpu, field->Byn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+    cudaMemcpy(Bzn_flat_gpu, field->Bzn_flat, sizeof(FPfield) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);
+
+    // Create temporary copy of host pointers
+    FPfield* Ex_flat_host = field->Ex_flat;
+    FPfield* Ey_flat_host = field->Ey_flat;
+    FPfield* Ez_flat_host = field->Ez_flat;
+    FPfield* Bxn_flat_host = field->Bxn_flat;
+    FPfield* Byn_flat_host = field->Byn_flat;
+    FPfield* Bzn_flat_host = field->Bzn_flat;
+
+    // Point to device pointer in host struct
+    field->Ex_flat = Ex_flat_gpu;
+    field->Ey_flat = Ey_flat_gpu;
+    field->Ez_flat = Ez_flat_gpu;
+    field->Bxn_flat = Bxn_flat_gpu;
+    field->Byn_flat = Byn_flat_gpu;
+    field->Bzn_flat = Bzn_flat_gpu;
+
+
+    // Move data to the GPU (pointers still pointing to host addresses)
+    cudaMemcpy(field_gpu, field, sizeof(EMfield), cudaMemcpyHostToDevice); 
+
+    // Restore host pointer
+    field->Ex_flat = Ex_flat_host;
+    field->Ey_flat = Ey_flat_host;
+    field->Ez_flat = Ez_flat_host;
+    field->Bxn_flat = Bxn_flat_host;
+    field->Byn_flat = Byn_flat_host;
+    field->Bzn_flat = Bzn_flat_host;   
 }
 
 /** move EMfield to CPU */
