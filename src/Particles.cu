@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include "GPUAllocation.h"
+#include <stdio.h>
 
 #define TPB 128
 
@@ -81,7 +82,7 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 {
     // get thread ID
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
- 
+        
     // auxiliary variables
     FPpart dt_sub_cycling = (FPpart) param->dt/((double) part->n_sub_cycles);
     FPpart dto2 = .5*dt_sub_cycling, qomdt2 = part->qom*dto2/param->c;
@@ -113,12 +114,18 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
                 iz = 2 +  int((part->z[id] - grd->zStart)*grd->invdz);
                 
                 // calculate weights
-                xi[0]   = part->x[id] - grd->XN[ix - 1][iy][iz];
-                eta[0]  = part->y[id] - grd->YN[ix][iy - 1][iz];
-                zeta[0] = part->z[id] - grd->ZN[ix][iy][iz - 1];
-                xi[1]   = grd->XN[ix][iy][iz] - part->x[id];
-                eta[1]  = grd->YN[ix][iy][iz] - part->y[id];
-                zeta[1] = grd->ZN[ix][iy][iz] - part->z[id];
+                // xi[0]   = part->x[id] - grd->XN[ix - 1][iy][iz];
+                // eta[0]  = part->y[id] - grd->YN[ix][iy - 1][iz];
+                // zeta[0] = part->z[id] - grd->ZN[ix][iy][iz - 1];
+                xi[0]   = part->x[id] - grd->XN_flat[get_idx(ix - 1, iy, iz, grd->nyn, grd->nzn)];                
+                eta[0]  = part->y[id] - grd->YN_flat[get_idx(ix, iy - 1, iz, grd->nyn, grd->nzn)];                
+                zeta[0] = part->z[id] - grd->ZN_flat[get_idx(ix, iy, iz - 1, grd->nyn, grd->nzn)];
+                // xi[1]   = grd->XN[ix][iy][iz] - part->x[id];
+                // eta[1]  = grd->YN[ix][iy][iz] - part->y[id];
+                // zeta[1] = grd->ZN[ix][iy][iz] - part->z[id];
+                xi[1]   = grd->XN_flat[get_idx(ix, iy, iz, grd->nyn, grd->nzn)] - part->x[id];                
+                eta[1]  = grd->YN_flat[get_idx(ix, iy, iz, grd->nyn, grd->nzn)] - part->y[id];                
+                zeta[1] = grd->ZN_flat[get_idx(ix, iy, iz, grd->nyn, grd->nzn)] - part->z[id];
                 for (int ii = 0; ii < 2; ii++)
                     for (int jj = 0; jj < 2; jj++)
                         for (int kk = 0; kk < 2; kk++)
@@ -130,12 +137,18 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
                 for (int ii=0; ii < 2; ii++)
                     for (int jj=0; jj < 2; jj++)
                         for(int kk=0; kk < 2; kk++){
-                            Exl += weight[ii][jj][kk]*field->Ex[ix- ii][iy -jj][iz- kk ];
-                            Eyl += weight[ii][jj][kk]*field->Ey[ix- ii][iy -jj][iz- kk ];
-                            Ezl += weight[ii][jj][kk]*field->Ez[ix- ii][iy -jj][iz -kk ];
-                            Bxl += weight[ii][jj][kk]*field->Bxn[ix- ii][iy -jj][iz -kk ];
-                            Byl += weight[ii][jj][kk]*field->Byn[ix- ii][iy -jj][iz -kk ];
-                            Bzl += weight[ii][jj][kk]*field->Bzn[ix- ii][iy -jj][iz -kk ];
+                            // Exl += weight[ii][jj][kk]*field->Ex[ix- ii][iy -jj][iz- kk ];
+                            // Eyl += weight[ii][jj][kk]*field->Ey[ix- ii][iy -jj][iz- kk ];
+                            // Ezl += weight[ii][jj][kk]*field->Ez[ix- ii][iy -jj][iz -kk ];
+                            // Bxl += weight[ii][jj][kk]*field->Bxn[ix- ii][iy -jj][iz -kk ];
+                            // Byl += weight[ii][jj][kk]*field->Byn[ix- ii][iy -jj][iz -kk ];
+                            // Bzl += weight[ii][jj][kk]*field->Bzn[ix- ii][iy -jj][iz -kk ];
+                            Exl += weight[ii][jj][kk]*field->Ex_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
+                            Eyl += weight[ii][jj][kk]*field->Ey_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
+                            Ezl += weight[ii][jj][kk]*field->Ez_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
+                            Bxl += weight[ii][jj][kk]*field->Bxn_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
+                            Byl += weight[ii][jj][kk]*field->Byn_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
+                            Bzl += weight[ii][jj][kk]*field->Bzn_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)];
                         }
                 
                 // end interpolation
@@ -260,18 +273,15 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
-    emfield_move2cpu(field_gpu, field, grd);
-    grid_move2cpu(grd_gpu, grd);
+    emfield_move2cpu(field_gpu, &field, grd);
+    grid_move2cpu(grd_gpu, &grd);
     cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
-    std::cout << "Hello" << std::endl;
     emfield_deallocate_gpu(field_gpu);
     grid_deallocate_gpu(grd_gpu);
     cudaFree(param_gpu);
-
-    std::cout << "NO segmentation fault :D" << std::endl;
 
     return 0;
 }
@@ -432,7 +442,7 @@ int mover_PC_cpu(struct particles* part, struct EMfield* field, struct grid* grd
             
         }  // end of subcycling
     } // end of one particle
-                                                                        
+                            
     return(0); // exit succcesfully
 } // end of the mover
 
@@ -452,11 +462,15 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
     
     
     for (register long long i = 0; i < part->nop; i++) {
-        
+
+        std::cout << part->npmax << std::endl;
+
         // determine cell: can we change to int()? is it faster?
         ix = 2 + int (floor((part->x[i] - grd->xStart) * grd->invdx));
         iy = 2 + int (floor((part->y[i] - grd->yStart) * grd->invdy));
         iz = 2 + int (floor((part->z[i] - grd->zStart) * grd->invdz));
+
+        std::cout << "Hello" << std::endl;
         
         // distances from node
         xi[0]   = part->x[i] - grd->XN[ix - 1][iy][iz];

@@ -14,7 +14,7 @@ void particle_deallocate_gpu(struct particles* part_gpu);
 void emfield_move2gpu(struct EMfield* field, struct EMfield** field_gpu, struct grid* grd);
 
 /** move EMfield to CPU */
-void emfield_move2cpu(struct EMfield* field_gpu, struct EMfield* field, struct grid* grd);
+void emfield_move2cpu(struct EMfield* field_gpu, struct EMfield** field, struct grid* grd);
 
 /** deallocate */
 void emfield_deallocate_gpu(struct EMfield* field_gpu);
@@ -24,7 +24,7 @@ void emfield_deallocate_gpu(struct EMfield* field_gpu);
 void grid_move2gpu(struct grid* grd, struct grid** grd_gpu);
 
 /** move grid to CPU */
-void grid_move2cpu(struct grid* grd_gpu, struct grid* grd);
+void grid_move2cpu(struct grid* grd_gpu, struct grid** grd);
 
 /** deallocate */
 void grid_deallocate_gpu(struct grid* grd_gpu);

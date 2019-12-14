@@ -13,4 +13,9 @@ while getopts ":h" opt; do
   esac
 done
 
-cmp --silent $1 $2 && echo '### SUCCESS: Files are identical! ###' || echo '### Files are different! ###'
+if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters"
+    exit 1
+fi
+
+cmp --silent $1 $2 && echo '### SUCCESS: Files are identical! ###' || echo 'Files are different!'
