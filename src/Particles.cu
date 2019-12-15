@@ -273,8 +273,8 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
-    emfield_move2cpu(field_gpu, &field, grd);
-    grid_move2cpu(grd_gpu, &grd);
+    emfield_move2cpu(field_gpu, field, grd);
+    grid_move2cpu(grd_gpu, grd);
     cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
 
     // Free the memory
@@ -463,14 +463,10 @@ void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct gri
     
     for (register long long i = 0; i < part->nop; i++) {
 
-        std::cout << part->npmax << std::endl;
-
         // determine cell: can we change to int()? is it faster?
         ix = 2 + int (floor((part->x[i] - grd->xStart) * grd->invdx));
         iy = 2 + int (floor((part->y[i] - grd->yStart) * grd->invdy));
         iz = 2 + int (floor((part->z[i] - grd->zStart) * grd->invdz));
-
-        std::cout << "Hello" << std::endl;
         
         // distances from node
         xi[0]   = part->x[i] - grd->XN[ix - 1][iy][iz];
