@@ -3,7 +3,7 @@
 while getopts ":h" opt; do
   case $opt in
     h)
-      echo "Usage: compare_outfiles.sh file1 file2" >&2
+      echo "Usage: compare_outfiles file1 file2" >&2
       exit 1
       ;;
     \?)
