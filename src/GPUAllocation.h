@@ -28,3 +28,13 @@ void grid_move2cpu(struct grid* grd_gpu, struct grid* grd);
 
 /** deallocate */
 void grid_deallocate_gpu(struct grid* grd_gpu);
+
+
+/** move interpDensSpecies to GPU */
+void ids_move2gpu(struct interpDensSpecies* ids, struct interpDensSpecies** ids_gpu, struct grid* grd);
+
+/** move interpDensSpecies to CPU */
+void ids_move2cpu(struct interpDensSpecies* ids_gpu, struct interpDensSpecies* ids, struct grid* grd);
+
+/** deallocate */
+void ids_deallocate_gpu(struct interpDensSpecies* ids_gpu);

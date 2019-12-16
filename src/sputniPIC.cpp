@@ -103,7 +103,7 @@ int main(int argc, char **argv){
         iInterp = cpuSecond(); // start timer for the interpolation step
         // interpolate species
         for (int is=0; is < param.ns; is++)
-            interpP2G(&part[is],&ids[is],&grd);
+            interpP2G_gpu_launch(&part[is],&ids[is],&grd);
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
