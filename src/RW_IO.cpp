@@ -276,7 +276,10 @@ void readInputFile(struct parameters* param, int argc, char **argv)
     
     param->SaveDirName = config.read < string > ("SaveDirName");
     param->RestartDirName = config.read < string > ("RestartDirName");
-    
+
+    // read batchsize
+    int batchsize_default = *std::max_element(param->np, param->np+param.ns);  // use only one batch by default
+    param->batchsize = config.read < int >("batchsize", batchsize_default);
 }
 
 /** Print Simulation Parameters */
@@ -289,6 +292,7 @@ void printParameters(struct parameters* param)
     std::cout << "Number of species    = " << param->ns << std::endl;
     for (int i = 0; i < param->ns; i++)
         std::cout << "Number of particles of species " << i << " = " << param->np[i] << "\t (MAX = " << param->npMax[i] << ")" << "  QOM = " << param->qom[i] << std::endl;
+    std::cout << "Batchsize                = " << param->batchsize << std::endl;
     std::cout << "x-Length                 = " << param->Lx << std::endl;
     std::cout << "y-Length                 = " << param->Ly << std::endl;
     std::cout << "z-Length                 = " << param->Lz << std::endl;
@@ -319,6 +323,8 @@ void saveParameters(struct parameters* param)
     my_file << "Number of species    = " << param->ns << std::endl;
     for (int i = 0; i < param->ns; i++)
         my_file << "Number of particles of species " << i << " = " << param->np[i] << "\t (MAX = " << param->npMax[i] << ")" << "  QOM = " << param->qom[i] << std::endl;
+    my_file << "---------------------------" << std::endl;
+    my_file << "Batchsize                = " << param->batchsize << std::endl;
     my_file << "---------------------------" << std::endl;
     my_file << "x-Length                 = " << param->Lx << std::endl;
     my_file << "y-Length                 = " << param->Ly << std::endl;

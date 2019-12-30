@@ -73,7 +73,19 @@ int main(int argc, char **argv){
     
     // Initialization
     initGEM(&param,&grd,&field,&field_aux,part,ids);
-    
+
+    // Create mini-batches
+    particles **part_batches = new particles*[param.ns];
+    int nobs[param.ns];  // number of batches per species
+    for (int is=0; is < param.ns; is++){
+        nob = particle_batch_create(&param, &part[is], part_batches[is])
+        nobs[is] = nob;
+    }
+
+    // Deallocate (un-batched) particles
+    for (int is=0; is < param.ns; is++){
+        particle_deallocate(&part[is]);
+    }  
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -93,7 +105,12 @@ int main(int argc, char **argv){
         // implicit mover
         iMover = cpuSecond(); // start timer for mover
         for (int is=0; is < param.ns; is++)
-            mover_PC_gpu_launch(&part[is],&field,&grd,&param);
+        {
+            for (int ib=0; ib<nobs[is]; ++ib)
+            {
+                mover_PC_gpu_launch(&part_batches[is][ib], &field, &grd, &param);
+            }
+        }
         eMover += (cpuSecond() - iMover); // stop timer for mover
         
         
@@ -103,7 +120,12 @@ int main(int argc, char **argv){
         iInterp = cpuSecond(); // start timer for the interpolation step
         // interpolate species
         for (int is=0; is < param.ns; is++)
-            interpP2G_gpu_launch(&part[is],&ids[is],&grd);
+        {
+            for (int ib=0; ib<nobs[is]; ++ib)
+            {
+                interpP2G_gpu_launch(&part_batches[is][ib], &ids[is], &grd);
+            }
+        }
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
@@ -136,7 +158,7 @@ int main(int argc, char **argv){
     // Deallocate interpolated densities and particles
     for (int is=0; is < param.ns; is++){
         interp_dens_species_deallocate(&grd,&ids[is]);
-        particle_deallocate(&part[is]);
+        particle_batch_deallocate(part_batches[is], nobs[is]);
     }
     
     

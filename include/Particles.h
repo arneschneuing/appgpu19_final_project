@@ -2,6 +2,7 @@
 #define PARTICLES_H
 
 #include <math.h>
+#include <algorithm>
 
 #include "Alloc.h"
 #include "Parameters.h"
@@ -66,5 +67,23 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
 
 /** Interpolation Particle --> Grid: This is for species */
 void interpP2G(struct particles*, struct interpDensSpecies*, struct grid*);
+
+/**
+* Create batches of particles
+* 
+* @param param Structure containing the simulation parameters
+* @param part Particle structure containing all particles (of one species)
+* @param part_batches Array of particle structures storing the batches after creation
+* @return number of batches
+*/
+int particle_batch_create(struct parameters* param, struct particles* part, struct particles* part_batches);
+
+/**
+* Deallocate particle batches
+* 
+* @param part_batches
+* @param nob Number of batches
+*/
+void particle_batch_deallocate(struct particles* part_batches, int nob);
 
 #endif

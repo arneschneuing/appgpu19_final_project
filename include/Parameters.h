@@ -213,6 +213,8 @@ struct parameters {
     std::string RestartDirName;
     /** name of the file with wave amplitude and phases */
     std::string WaveFile;
-    
+
+    /** batchsize */
+    int batchsize;
 };
 #endif
