@@ -2,7 +2,6 @@
 #define PARTICLES_H
 
 #include <math.h>
-#include <algorithm>
 
 #include "Alloc.h"
 #include "Parameters.h"
@@ -76,7 +75,7 @@ void interpP2G(struct particles*, struct interpDensSpecies*, struct grid*);
 * @param part_batches Array of particle structures storing the batches after creation
 * @return number of batches
 */
-int particle_batch_create(struct parameters* param, struct particles* part, struct particles* part_batches);
+int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches);
 
 /**
 * Deallocate particle batches

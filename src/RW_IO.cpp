@@ -278,7 +278,7 @@ void readInputFile(struct parameters* param, int argc, char **argv)
     param->RestartDirName = config.read < string > ("RestartDirName");
 
     // read batchsize
-    int batchsize_default = *std::max_element(param->np, param->np+param.ns);  // use only one batch by default
+    int batchsize_default = *std::max_element(param->np, param->np+param->ns);  // use only one batch by default
     param->batchsize = config.read < int >("batchsize", batchsize_default);
 }
 

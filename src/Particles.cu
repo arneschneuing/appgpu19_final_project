@@ -83,17 +83,17 @@ int get_nob(int nop, int batchsize)
 }
 
 /** Create batches of particles */
-int particle_batch_create(struct parameters* param, struct particles* part, struct particles* part_batches)
+int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches)
 {
     // Compute number of batches
     int nob = get_nob(part->nop, param->batchsize);
 
     // Fill one batch at a time with particle data
-    part_batches = new particles[nob];
+    *part_batches = new particles[nob];
 
     for (int batch_id=0; batch_id<nob; ++batch_id) {
         // copy structure, pointers will still point to the same memory address
-        part_batches[batch_id] = *part;
+        (*part_batches)[batch_id] = *part;
 
         //////////////////////////////////////
         // Overwrite relevant scalar values //
@@ -104,38 +104,38 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
             // Last batch is a special case as it may contain fewer than batchsize particles
             int batch_remainder = part->nop % param->batchsize;
             if (batch_remainder == 0)
-                part_batches[batch_id].nop = param->batchsize;
+                (*part_batches)[batch_id].nop = param->batchsize;
             else
-                part_batches[batch_id].nop = batch_remainder;
+                (*part_batches)[batch_id].nop = batch_remainder;
         }
         else
-            part_batches[batch_id].nop = param->batchsize;
+            (*part_batches)[batch_id].nop = param->batchsize;
 
         // maximum number of particles
         long npmax = param->batchsize; // I am not really sure if we can just use the batchsize here... 
-        part_batches[batch_id].npmax = npmax;
+        (*part_batches)[batch_id].npmax = npmax;
             
         ///////////////////////
         /// Overwrite arrays //
         ///////////////////////
 
         // Allocate new memory addresses
-        part_batches[batch_id].x = new FPpart[npmax];
-        part_batches[batch_id].y = new FPpart[npmax];
-        part_batches[batch_id].z = new FPpart[npmax];
-        part_batches[batch_id].u = new FPpart[npmax];
-        part_batches[batch_id].v = new FPpart[npmax];
-        part_batches[batch_id].w = new FPpart[npmax];
-        part_batches[batch_id].q = new FPinterp[npmax];
+        (*part_batches)[batch_id].x = new FPpart[npmax];
+        (*part_batches)[batch_id].y = new FPpart[npmax];
+        (*part_batches)[batch_id].z = new FPpart[npmax];
+        (*part_batches)[batch_id].u = new FPpart[npmax];
+        (*part_batches)[batch_id].v = new FPpart[npmax];
+        (*part_batches)[batch_id].w = new FPpart[npmax];
+        (*part_batches)[batch_id].q = new FPinterp[npmax];
 
         // Copy the values
-        std::copy((part->x)+batch_id*param->batchsize, (part->x)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].x);
-        std::copy((part->y)+batch_id*param->batchsize, (part->y)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].y);
-        std::copy((part->z)+batch_id*param->batchsize, (part->z)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].z);
-        std::copy((part->u)+batch_id*param->batchsize, (part->u)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].u);
-        std::copy((part->v)+batch_id*param->batchsize, (part->v)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].v);
-        std::copy((part->w)+batch_id*param->batchsize, (part->w)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].w);
-        std::copy((part->q)+batch_id*param->batchsize, (part->q)+batch_id*param->batchsize+part_batches[batch_id].nop, part_batches[batch_id].q);
+        std::copy((part->x)+batch_id*param->batchsize, (part->x)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
+        std::copy((part->y)+batch_id*param->batchsize, (part->y)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].y);
+        std::copy((part->z)+batch_id*param->batchsize, (part->z)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].z);
+        std::copy((part->u)+batch_id*param->batchsize, (part->u)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].u);
+        std::copy((part->v)+batch_id*param->batchsize, (part->v)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].v);
+        std::copy((part->w)+batch_id*param->batchsize, (part->w)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].w);
+        std::copy((part->q)+batch_id*param->batchsize, (part->q)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].q);
     }
 
     return nob;

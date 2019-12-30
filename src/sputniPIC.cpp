@@ -77,15 +77,16 @@ int main(int argc, char **argv){
     // Create mini-batches
     particles **part_batches = new particles*[param.ns];
     int nobs[param.ns];  // number of batches per species
+    int nob;  // temporary variable to store the current species's number of batches
     for (int is=0; is < param.ns; is++){
-        nob = particle_batch_create(&param, &part[is], part_batches[is])
+        nob = particle_batch_create(&param, &part[is], &part_batches[is]);
         nobs[is] = nob;
     }
 
     // Deallocate (un-batched) particles
     for (int is=0; is < param.ns; is++){
         particle_deallocate(&part[is]);
-    }  
+    }   
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -104,11 +105,13 @@ int main(int argc, char **argv){
         
         // implicit mover
         iMover = cpuSecond(); // start timer for mover
+        std::cout << "* Particle Mover" << std::endl;
         for (int is=0; is < param.ns; is++)
         {
             for (int ib=0; ib<nobs[is]; ++ib)
             {
                 mover_PC_gpu_launch(&part_batches[is][ib], &field, &grd, &param);
+                std::cout << "species index: "  << is << ", batch index: " << ib << std::endl;
             }
         }
         eMover += (cpuSecond() - iMover); // stop timer for mover
@@ -119,11 +122,13 @@ int main(int argc, char **argv){
         // interpolation particle to grid
         iInterp = cpuSecond(); // start timer for the interpolation step
         // interpolate species
+        std::cout << "* Interpolation P2G" << std::endl;
         for (int is=0; is < param.ns; is++)
         {
             for (int ib=0; ib<nobs[is]; ++ib)
             {
                 interpP2G_gpu_launch(&part_batches[is][ib], &ids[is], &grd);
+                std::cout << "species index: " << is << ", batch index: " << ib << std::endl;
             }
         }
         // apply BC to interpolated densities

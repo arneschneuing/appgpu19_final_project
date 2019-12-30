@@ -4,6 +4,8 @@
 #include "ConfigFile.h"
 #include "input_array.h"
 
+#include <algorithm>
+
 /** read the inputfile given via the command line */
 void readInputFile(struct parameters*, int, char**);
 
