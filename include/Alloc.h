@@ -73,6 +73,45 @@ inline type ****newArr4(size_t sz1, size_t sz2, size_t sz3, size_t sz4)
   return arr;
 }
 
+/**
+ * Create arrays in pinned memory
+ */
+template < class type >
+inline type *newPinnedArr1(size_t sz1)
+{
+  type *arr;
+  cudaMallocHost((void **) &arr, sizeof(type)*sz1, cudaHostAllocDefault);
+  return arr;
+}
+
+template < class type >
+inline type **newPinnedArr2(size_t sz1, size_t sz2)
+{
+  type **arr;
+  cudaMallocHost((void **) &arr, sizeof(type*)*sz1, cudaHostAllocDefault);
+  type *ptr = newPinnedArr1<type>(sz1*sz2);
+  for (size_t i = 0; i < sz1; i++)
+  {
+    arr[i] = ptr;
+    ptr += sz2;
+  }
+  return arr;
+}
+
+template < class type >
+inline type ***newPinnedArr3(size_t sz1, size_t sz2, size_t sz3)
+{
+  type ***arr;
+  cudaMallocHost((void **) &arr, sizeof(type**)*sz1, cudaHostAllocDefault);
+  type **ptr = newPinnedArr2<type>(sz1*sz2, sz3);
+  for (size_t i = 0; i < sz1; i++)
+  {
+    arr[i] = ptr;
+    ptr += sz2;
+  }
+  return arr;
+}
+
 // build chained pointer hierarchy for pre-existing bottom level
 //
 
@@ -161,6 +200,15 @@ template <class type> inline void delArr3(type *** arr, size_t sz1, size_t sz2)
 { delArray3<type>(arr); }
 template <class type> inline void delArr4(type **** arr, size_t sz1, size_t sz2, size_t sz3)
 { delArray4<type>(arr); }
+//
+// methods to deallocate arrays from pinned memory
+//
+template < class type > inline void delPinnedArray1(type * arr)
+{ cudaFreeHost(arr);}
+template < class type > inline void delPinnedArray2(type ** arr)
+{ delPinnedArray1(arr[0]); cudaFreeHost(arr); }
+template < class type > inline void delPinnedArray3(type *** arr)
+{ delPinnedArray2(arr[0]); cudaFreeHost(arr); }
 
 #define newArr1(type, sz1) newArr1<type>(sz1)
 #define newArr(type,sz1,sz2) newArr2<type>(sz1, sz2)

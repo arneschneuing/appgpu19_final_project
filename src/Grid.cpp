@@ -47,9 +47,9 @@ void setGrid(struct parameters* param, struct grid* grd)
     grd->PERIODICZ = param->PERIODICZ;
     
     // allocate grid points - nodes
-    grd->XN  = newArr3<FPfield>(&grd->XN_flat, grd->nxn, grd->nyn, grd->nzn);
-    grd->YN  = newArr3<FPfield>(&grd->YN_flat, grd->nxn, grd->nyn, grd->nzn);
-    grd->ZN  = newArr3<FPfield>(&grd->ZN_flat, grd->nxn, grd->nyn, grd->nzn);
+    grd->XN  = newPinnedArr3<FPfield>(&grd->XN_flat, grd->nxn, grd->nyn, grd->nzn);
+    grd->YN  = newPinnedArr3<FPfield>(&grd->YN_flat, grd->nxn, grd->nyn, grd->nzn);
+    grd->ZN  = newPinnedArr3<FPfield>(&grd->ZN_flat, grd->nxn, grd->nyn, grd->nzn);
     
     
     // calculate the coordinates - Nodes
@@ -79,9 +79,9 @@ void printGrid(struct grid* grd)
 void grid_deallocate(struct grid* grd)
 {
     
-    delArr3(grd->XN, grd->nxn, grd->nyn);
-    delArr3(grd->YN, grd->nxn, grd->nyn);
-    delArr3(grd->ZN, grd->nxn, grd->nyn);
+    delPinnedArr3(grd->XN, grd->nxn, grd->nyn);
+    delPinnedArr3(grd->YN, grd->nxn, grd->nyn);
+    delPinnedArr3(grd->ZN, grd->nxn, grd->nyn);
 }
 
 

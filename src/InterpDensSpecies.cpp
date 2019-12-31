@@ -8,26 +8,26 @@ void interp_dens_species_allocate(struct grid* grd, struct interpDensSpecies* id
     
     // allocate 3D arrays
     // rho: 1
-    ids->rhon = newArr3<FPinterp>(&ids->rhon_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
-    ids->rhoc = newArr3<FPinterp>(&ids->rhoc_flat, grd->nxc, grd->nyc, grd->nzc); // center
+    ids->rhon = newPinnedArr3<FPinterp>(&ids->rhon_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->rhoc = newPinnedArr3<FPinterp>(&ids->rhoc_flat, grd->nxc, grd->nyc, grd->nzc); // center
     // Jx: 2
-    ids->Jx   = newArr3<FPinterp>(&ids->Jx_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->Jx   = newPinnedArr3<FPinterp>(&ids->Jx_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Jy: 3
-    ids->Jy   = newArr3<FPinterp>(&ids->Jy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->Jy   = newPinnedArr3<FPinterp>(&ids->Jy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Jz: 4
-    ids->Jz   = newArr3<FPinterp>(&ids->Jz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->Jz   = newPinnedArr3<FPinterp>(&ids->Jz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pxx: 5
-    ids->pxx  = newArr3<FPinterp>(&ids->pxx_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pxx  = newPinnedArr3<FPinterp>(&ids->pxx_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pxy: 6
-    ids->pxy  = newArr3<FPinterp>(&ids->pxy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pxy  = newPinnedArr3<FPinterp>(&ids->pxy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pxz: 7
-    ids->pxz  = newArr3<FPinterp>(&ids->pxz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pxz  = newPinnedArr3<FPinterp>(&ids->pxz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pyy: 8
-    ids->pyy  = newArr3<FPinterp>(&ids->pyy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pyy  = newPinnedArr3<FPinterp>(&ids->pyy_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pyz: 9
-    ids->pyz  = newArr3<FPinterp>(&ids->pyz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pyz  = newPinnedArr3<FPinterp>(&ids->pyz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     // Pzz: 10
-    ids->pzz  = newArr3<FPinterp>(&ids->pzz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
+    ids->pzz  = newPinnedArr3<FPinterp>(&ids->pzz_flat, grd->nxn, grd->nyn, grd->nzn); // nodes
     
 }
 
@@ -36,19 +36,19 @@ void interp_dens_species_deallocate(struct grid* grd, struct interpDensSpecies* 
 {
     
     // deallocate 3D arrays
-    delArr3(ids->rhon, grd->nxn, grd->nyn);
-    delArr3(ids->rhoc, grd->nxc, grd->nyc);
+    delPinnedArr3(ids->rhon, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->rhoc, grd->nxc, grd->nyc);
     // deallocate 3D arrays: J - current
-    delArr3(ids->Jx, grd->nxn, grd->nyn);
-    delArr3(ids->Jy, grd->nxn, grd->nyn);
-    delArr3(ids->Jz, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->Jx, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->Jy, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->Jz, grd->nxn, grd->nyn);
     // deallocate 3D arrays: pressure
-    delArr3(ids->pxx, grd->nxn, grd->nyn);
-    delArr3(ids->pxy, grd->nxn, grd->nyn);
-    delArr3(ids->pxz, grd->nxn, grd->nyn);
-    delArr3(ids->pyy, grd->nxn, grd->nyn);
-    delArr3(ids->pyz, grd->nxn, grd->nyn);
-    delArr3(ids->pzz, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pxx, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pxy, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pxz, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pyy, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pyz, grd->nxn, grd->nyn);
+    delPinnedArr3(ids->pzz, grd->nxn, grd->nyn);
     
     
 }

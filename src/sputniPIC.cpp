@@ -57,7 +57,8 @@ int main(int argc, char **argv){
     
     // Allocate Interpolated Quantities
     // per species
-    interpDensSpecies *ids = new interpDensSpecies[param.ns];
+    interpDensSpecies *ids;  // interpDensSpecies *ids = new interpDensSpecies[param.ns];
+    cudaMallocHost((void **) &ids, sizeof(interpDensSpecies)*param.ns, cudaHostAllocDefault);
     for (int is=0; is < param.ns; is++)
         interp_dens_species_allocate(&grd,&ids[is],is);
     // Net densities
@@ -75,7 +76,8 @@ int main(int argc, char **argv){
     initGEM(&param,&grd,&field,&field_aux,part,ids);
 
     // Create mini-batches
-    particles **part_batches = new particles*[param.ns];
+    particles** part_batches;  // particles **part_batches = new particles*[param.ns];
+    cudaMallocHost((void **) &part_batches, sizeof(particles*)*param.ns, cudaHostAllocDefault);
     int nobs[param.ns];  // number of batches per species
     int nob;  // temporary variable to store the current species's number of batches
     for (int is=0; is < param.ns; is++){

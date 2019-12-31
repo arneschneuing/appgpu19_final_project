@@ -76,6 +76,19 @@ void particle_deallocate(struct particles* part)
     delete[] part->q;
 }
 
+/** deallocate (pinned memory)*/
+void particle_deallocate_pinned(struct particles* part)
+{
+    // deallocate particle variables
+    cudaFreeHost(part->x);
+    cudaFreeHost(part->y);
+    cudaFreeHost(part->z);
+    cudaFreeHost(part->u);
+    cudaFreeHost(part->v);
+    cudaFreeHost(part->w);
+    cudaFreeHost(part->q);
+}
+
 /** Compute number of batches */
 int get_nob(int nop, int batchsize)
 {
@@ -89,7 +102,8 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
     int nob = get_nob(part->nop, param->batchsize);
 
     // Fill one batch at a time with particle data
-    *part_batches = new particles[nob];
+    // *part_batches = new particles[nob];
+    cudaMallocHost((void **) part_batches, sizeof(particles)*nob, cudaHostAllocDefault);
 
     for (int batch_id=0; batch_id<nob; ++batch_id) {
         // copy structure, pointers will still point to the same memory address
@@ -120,13 +134,20 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
         ///////////////////////
 
         // Allocate new memory addresses
-        (*part_batches)[batch_id].x = new FPpart[npmax];
-        (*part_batches)[batch_id].y = new FPpart[npmax];
-        (*part_batches)[batch_id].z = new FPpart[npmax];
-        (*part_batches)[batch_id].u = new FPpart[npmax];
-        (*part_batches)[batch_id].v = new FPpart[npmax];
-        (*part_batches)[batch_id].w = new FPpart[npmax];
-        (*part_batches)[batch_id].q = new FPinterp[npmax];
+        // (*part_batches)[batch_id].x = new FPpart[npmax];
+        // (*part_batches)[batch_id].y = new FPpart[npmax];
+        // (*part_batches)[batch_id].z = new FPpart[npmax];
+        // (*part_batches)[batch_id].u = new FPpart[npmax];
+        // (*part_batches)[batch_id].v = new FPpart[npmax];
+        // (*part_batches)[batch_id].w = new FPpart[npmax];
+        // (*part_batches)[batch_id].q = new FPinterp[npmax];
+        cudaMallocHost((void **) &((*part_batches)[batch_id].x), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].y), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].z), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].u), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].v), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].w), sizeof(FPpart)*npmax, cudaHostAllocDefault);
+        cudaMallocHost((void **) &((*part_batches)[batch_id].q), sizeof(FPpart)*npmax, cudaHostAllocDefault);
 
         // Copy the values
         std::copy((part->x)+batch_id*param->batchsize, (part->x)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
@@ -146,7 +167,7 @@ void particle_batch_deallocate(struct particles* part_batches, int nob)
 {
     for (int i=0; i<nob; ++i)
     {
-        particle_deallocate(&part_batches[i]);
+        particle_deallocate_pinned(&part_batches[i]);
     }
 }
 
