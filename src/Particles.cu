@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #define TPB 128  // 128, 256 or 512
+#define STREAMS 2  // number of streams for each computation on the GPU
 
 /** allocate particle arrays */
 void particle_allocate(struct parameters* param, struct particles* part, int is)
@@ -173,10 +174,13 @@ void particle_batch_deallocate(struct particles* part_batches, int nob)
 
 /** particle mover */
 __global__
-void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
+void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param, int offset, int num_elem)
 {
     // get thread ID
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // add offset to get global particle ID
+    id = offset + id;
         
     // auxiliary variables
     FPpart dt_sub_cycling = (FPpart) param->dt/((double) part->n_sub_cycles);
@@ -197,7 +201,7 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
     // start subcycling
     for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
         // move each particle with new fields
-        if (id < part->nop){
+        if (id < offset + num_elem){
             xptilde = part->x[id];
             yptilde = part->y[id];
             zptilde = part->z[id];
@@ -347,30 +351,57 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 /* launch GPU version of the particle mover */
 int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
 {
-    // Allocate memory on the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
+    // Copy EMfield struct to device
     EMfield* field_gpu;
     emfield_move2gpu(field, &field_gpu, grd);
 
+    // Copy grid struct to device
     grid* grd_gpu;
     grid_move2gpu(grd, &grd_gpu);
     
+    // Copy parameters struct to device
     parameters* param_gpu;
     cudaMalloc(&param_gpu, sizeof(parameters));
-
-    // Move data to the GPU
     cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
 
-    // Call kernel
-    mover_PC_gpu<<<(part->nop+TPB-1)/TPB, TPB>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
+    // Create cuda streams
+    cudaStream_t stream[STREAMS];
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        cudaStreamCreate(&stream[s_id]);
+    }
 
-    // Retrieve data from the device
-    particle_move2cpu(part_gpu, part);
-    emfield_move2cpu(field_gpu, field, grd);
-    grid_move2cpu(grd_gpu, grd);
-    cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
+    // Prepare stream computation
+    int pps = ceil(part->npmax / STREAMS);  // particles per stream
+    int stream_offset;
+    int nps;  // number of particles in current stream
+    particles* part_gpu;
+
+    // Divide the particle data in segments and use streams to overlap data transfer and computation
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        // Compute offset to specify start of array segments
+        stream_offset = s_id * pps;
+
+        // Number of particles in stream is either equal to pps or what is left in the last stream
+        nps = std::min(pps, part->npmax - stream_offset);
+
+        // Copy segment of the particles struct to device
+        particle_move2gpu(part, &part_gpu, stream[s_id], stream_offset, nps);
+
+        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
+        mover_PC_gpu<<<(nps+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset, nps);
+
+        // Retrieve data from the device
+        particle_move2cpu(part_gpu, part, stream[s_id], stream_offset, nps);
+    }
+    
+    // wait for GPU operations to finish and destroy streams
+    cudaDeviceSynchronize();
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        cudaStreamDestroy(stream[s_id]);
+    }
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
@@ -384,10 +415,13 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
 /** Interpolation Particle --> Grid: This is for species */
 __global__
-void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
+void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, int offset, int num_elem)
 { 
     // get thread ID
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // add offset to get global particle ID
+    id = offset + id;
 
     // arrays needed for interpolation
     FPpart weight[2][2][2];
@@ -397,7 +431,7 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
     // index of the cell
     int ix, iy, iz;
      
-    if (id < part->nop) {
+    if (id < offset + num_elem) {
 
         // determine cell: can we change to int()? is it faster?
         ix = 2 + int (floor((part->x[id] - grd->xStart) * grd->invdx));
@@ -559,23 +593,52 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 /* launch GPU version of the P2G interpolation */
 int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
 {
-    // Allocate memory and move data to the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
+    // Copy interpDensSpecies struct to device
     interpDensSpecies* ids_gpu;
     ids_move2gpu(ids, &ids_gpu, grd);
 
+    // Copy grid struct to device
     grid* grd_gpu;
     grid_move2gpu(grd, &grd_gpu);
 
-    // Call kernel
-    interpP2G_gpu<<<(part->nop+TPB-1)/TPB, TPB>>>(part_gpu, ids_gpu, grd_gpu);
+    // Create cuda streams
+    cudaStream_t stream[STREAMS];
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        cudaStreamCreate(&stream[s_id]);
+    }
+
+    // Prepare stream computation
+    int pps = ceil(part->npmax / STREAMS);  // particles per stream
+    int stream_offset;
+    int nps;  // number of particles in current stream
+    particles* part_gpu;
+
+    // Divide the particle data in segments and use streams to overlap data transfer and computation
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        // Compute offset to specify start of array segments
+        stream_offset = s_id * pps;
+
+        // Number of particles in stream is either equal to pps or what is left in the last stream
+        nps = std::min(pps, part->npmax - stream_offset);
+
+        // Copy segment of the particles struct to device
+        particle_move2gpu(part, &part_gpu, stream[s_id], stream_offset, nps);
+
+        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
+        interpP2G_gpu<<<(nps+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset, nps);
+    }
+
+    // wait for GPU operations to finish and destroy streams
+    cudaDeviceSynchronize();
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
+        cudaStreamDestroy(stream[s_id]);
+    }
 
     // Retrieve data from the device
-    particle_move2cpu(part_gpu, part);
     ids_move2cpu(ids_gpu, ids, grd);
-    grid_move2cpu(grd_gpu, grd);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);

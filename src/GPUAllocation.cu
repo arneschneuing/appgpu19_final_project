@@ -1,120 +1,124 @@
 #include "GPUAllocation.h"
 
 /** move particle array to GPU */
-void particle_move2gpu(struct particles* part, struct particles** part_gpu)
+void particle_move2gpu(struct particles* part, struct particles** part_gpu, cudaStream_t stream, int offset, int num_elem)
 {   
-    // Allocate memory on the GPU
-    cudaMalloc(part_gpu, sizeof(particles)); 
+    // Basic allocations and copies only in the first stream
+    if (offset == 0)
+    {
+        // Allocate memory on the GPU
+        cudaMalloc(part_gpu, sizeof(particles)); 
 
-    // Allocate arrays on the device
-    FPpart* x_gpu;
-    cudaMalloc(&x_gpu, sizeof(FPpart)*part->npmax);
+        // Allocate arrays on the device
+        FPpart* x_gpu;
+        cudaMalloc(&x_gpu, sizeof(FPpart)*part->npmax);
 
-    FPpart* y_gpu;
-    cudaMalloc(&y_gpu, sizeof(FPpart)*part->npmax);
+        FPpart* y_gpu;
+        cudaMalloc(&y_gpu, sizeof(FPpart)*part->npmax);
 
-    FPpart* z_gpu;
-    cudaMalloc(&z_gpu, sizeof(FPpart)*part->npmax);
+        FPpart* z_gpu;
+        cudaMalloc(&z_gpu, sizeof(FPpart)*part->npmax);
 
-    FPpart* u_gpu;
-    cudaMalloc(&u_gpu, sizeof(FPpart)*part->npmax);
+        FPpart* u_gpu;
+        cudaMalloc(&u_gpu, sizeof(FPpart)*part->npmax);
 
-    FPpart* v_gpu;
-    cudaMalloc(&v_gpu, sizeof(FPpart)*part->npmax);
+        FPpart* v_gpu;
+        cudaMalloc(&v_gpu, sizeof(FPpart)*part->npmax);
 
-    FPpart* w_gpu;
-    cudaMalloc(&w_gpu, sizeof(FPpart)*part->npmax);
+        FPpart* w_gpu;
+        cudaMalloc(&w_gpu, sizeof(FPpart)*part->npmax);
 
-    FPinterp* q_gpu;
-    cudaMalloc(&q_gpu, sizeof(FPinterp)*part->npmax);
+        FPinterp* q_gpu;
+        cudaMalloc(&q_gpu, sizeof(FPinterp)*part->npmax);
+
+        // Create temporary copy of host pointers
+        FPpart* x_host = part->x;
+        FPpart* y_host = part->y;
+        FPpart* z_host = part->z;
+        FPpart* u_host = part->u;
+        FPpart* v_host = part->v;
+        FPpart* w_host = part->w;
+        FPinterp* q_host = part->q;
+
+        // Point to device pointers in host struct
+        part->x = x_gpu;
+        part->y = y_gpu;
+        part->z = z_gpu;
+        part->u = u_gpu;
+        part->v = v_gpu;
+        part->w = w_gpu;
+        part->q = q_gpu;
+
+        // Move data to the GPU 
+        // cudaMemcpy is implicitly blocking so that we can be sure parallel execution will not start before critical variables are copied
+        cudaMemcpy(*part_gpu, part, sizeof(particles), cudaMemcpyHostToDevice); 
+
+        // Restore host pointers
+        part->x = x_host;
+        part->y = y_host;
+        part->z = z_host;
+        part->u = u_host;
+        part->v = v_host;
+        part->w = w_host;
+        part->q = q_host; 
+    } 
 
     // Copy array values to the device
-    cudaMemcpy(x_gpu, part->x, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(y_gpu, part->y, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(z_gpu, part->z, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(u_gpu, part->u, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(v_gpu, part->v, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(w_gpu, part->w, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
-    cudaMemcpy(q_gpu, part->q, sizeof(FPinterp)*part->npmax, cudaMemcpyHostToDevice);
-
-    // Create temporary copy of host pointers
-    FPpart* x_host = part->x;
-    FPpart* y_host = part->y;
-    FPpart* z_host = part->z;
-    FPpart* u_host = part->u;
-    FPpart* v_host = part->v;
-    FPpart* w_host = part->w;
-    FPinterp* q_host = part->q;
-
-    // Point to device pointers in host struct
-    part->x = x_gpu;
-    part->y = y_gpu;
-    part->z = z_gpu;
-    part->u = u_gpu;
-    part->v = v_gpu;
-    part->w = w_gpu;
-    part->q = q_gpu;
-
-    // Move data to the GPU (pointers still pointing to host addresses)
-    cudaMemcpy(*part_gpu, part, sizeof(particles), cudaMemcpyHostToDevice); 
-
-    // Restore host pointers
-    part->x = x_host;
-    part->y = y_host;
-    part->z = z_host;
-    part->u = u_host;
-    part->v = v_host;
-    part->w = w_host;
-    part->q = q_host; 
+    cudaMemcpyAsync(x_gpu+offset, part->x+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(y_gpu+offset, part->y+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(z_gpu+offset, part->z+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(u_gpu+offset, part->u+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(v_gpu+offset, part->v+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(w_gpu+offset, part->w+offset, sizeof(FPpart)*num_elem, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(q_gpu+offset, part->q+offset, sizeof(FPinterp)*num_elem, cudaMemcpyHostToDevice, stream);
 }
 
 /** move particle array to CPU */
-void particle_move2cpu(struct particles* part_gpu, struct particles* part)
+void particle_move2cpu(struct particles* part_gpu, struct particles* part, cudaStream_t stream, int offset, int num_elem)
 {   
-    // Create temporary copy of host pointers
-    FPpart* x_host = part->x;
-    FPpart* y_host = part->y;
-    FPpart* z_host = part->z;
-    FPpart* u_host = part->u;
-    FPpart* v_host = part->v;
-    FPpart* w_host = part->w;
-    FPinterp* q_host = part->q;
+    // Basic copies only in the first stream
+    if (offset == 0)
+    {
+        // Create temporary copy of host pointers
+        FPpart* x_host = part->x;
+        FPpart* y_host = part->y;
+        FPpart* z_host = part->z;
+        FPpart* u_host = part->u;
+        FPpart* v_host = part->v;
+        FPpart* w_host = part->w;
+        FPinterp* q_host = part->q;
 
-    // Move data to the CPU
-    cudaMemcpy(part, part_gpu, sizeof(particles), cudaMemcpyDeviceToHost);
+        // Move data to the CPU
+        // cudaMemcpy is implicitly blocking so that we can be sure parallel execution will not start before critical variables are copied
+        cudaMemcpy(part, part_gpu, sizeof(particles), cudaMemcpyDeviceToHost);
 
-    // Create temporary copy of device pointers
-    FPpart* x_device = part->x;
-    FPpart* y_device = part->y;
-    FPpart* z_device = part->z;
-    FPpart* u_device = part->u;
-    FPpart* v_device = part->v;
-    FPpart* w_device = part->w;
-    FPinterp* q_device = part->q;
+        // Create temporary copy of device pointers
+        FPpart* x_device = part->x;
+        FPpart* y_device = part->y;
+        FPpart* z_device = part->z;
+        FPpart* u_device = part->u;
+        FPpart* v_device = part->v;
+        FPpart* w_device = part->w;
+        FPinterp* q_device = part->q;
 
-    // Restore host pointers
-    part->x = x_host;
-    part->y = y_host;
-    part->z = z_host;
-    part->u = u_host;
-    part->v = v_host;
-    part->w = w_host;
-    part->q = q_host;
+        // Restore host pointers
+        part->x = x_host;
+        part->y = y_host;
+        part->z = z_host;
+        part->u = u_host;
+        part->v = v_host;
+        part->w = w_host;
+        part->q = q_host;
+    }
     
     // move particle arrays
-    cudaMemcpy(part->x, x_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->y, y_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->z, z_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->u, u_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->v, v_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->w, w_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->q, q_device, sizeof(FPinterp)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(part->x+offset, x_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->y+offset, y_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->z+offset, z_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->u+offset, u_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->v+offset, v_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->w+offset, w_device+offset, sizeof(FPpart)*num_elem, cudaMemcpyDeviceToHost, stream);
+    cudaMemcpyAsync(part->q+offset, q_device+offset, sizeof(FPinterp)*num_elem, cudaMemcpyDeviceToHost, stream);
 }
 
 /** deallocate */
@@ -186,7 +190,7 @@ void emfield_move2gpu(struct EMfield* field, struct EMfield** field_gpu, struct 
     field->Bzn_flat = Bzn_flat_gpu;
 
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU 
     cudaMemcpy(*field_gpu, field, sizeof(EMfield), cudaMemcpyHostToDevice); 
 
     // Restore host pointers
@@ -292,7 +296,7 @@ void grid_move2gpu(struct grid* grd, struct grid** grd_gpu)
     grd->ZN_flat = ZN_flat_gpu;
 
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU 
     cudaMemcpy(*grd_gpu, grd, sizeof(grid), cudaMemcpyHostToDevice); 
 
     // Restore host pointers
@@ -426,7 +430,7 @@ void ids_move2gpu(struct interpDensSpecies* ids, struct interpDensSpecies** ids_
     ids->pyz_flat = pyz_flat_gpu;
     ids->pzz_flat = pzz_flat_gpu;
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU 
     cudaMemcpy(*ids_gpu, ids, sizeof(interpDensSpecies), cudaMemcpyHostToDevice); 
 
     // Restore host pointers

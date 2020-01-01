@@ -2,6 +2,7 @@
 #define PARTICLES_H
 
 #include <math.h>
+#include <algorithm>
 
 #include "Alloc.h"
 #include "Parameters.h"
