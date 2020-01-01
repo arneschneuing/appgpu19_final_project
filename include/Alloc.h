@@ -98,16 +98,19 @@ inline type **newPinnedArr2(size_t sz1, size_t sz2)
   return arr;
 }
 
-template < class type >
-inline type ***newPinnedArr3(size_t sz1, size_t sz2, size_t sz3)
+/** Add pointer hierarchy to pre-allocated memory "in" */
+template <class type>
+inline type ***newPinnedArr3(type **in, size_t sz1, size_t sz2, size_t sz3)
 {
-  type ***arr;
-  cudaMallocHost((void **) &arr, sizeof(type**)*sz1, cudaHostAllocDefault);
-  type **ptr = newPinnedArr2<type>(sz1*sz2, sz3);
-  for (size_t i = 0; i < sz1; i++)
-  {
-    arr[i] = ptr;
-    ptr += sz2;
+  *in = newPinnedArr1<type>(sz1*sz2*sz3);
+
+  type***arr = newPinnedArr2<type*>(sz1, sz2);
+  type**arr2 = *arr;
+  type *ptr = *in;
+  size_t szarr2 = sz1*sz2;
+  for(size_t i=0; i<szarr2; i++) {
+    arr2[i] = ptr;
+    ptr += sz3;
   }
   return arr;
 }
@@ -209,6 +212,9 @@ template < class type > inline void delPinnedArray2(type ** arr)
 { delPinnedArray1(arr[0]); cudaFreeHost(arr); }
 template < class type > inline void delPinnedArray3(type *** arr)
 { delPinnedArray2(arr[0]); cudaFreeHost(arr); }
+// with dummy dimensions
+template <class type> inline void delPinnedArr3(type *** arr, size_t sz1, size_t sz2)
+{ delPinnedArray3<type>(arr); }
 
 #define newArr1(type, sz1) newArr1<type>(sz1)
 #define newArr(type,sz1,sz2) newArr2<type>(sz1, sz2)
