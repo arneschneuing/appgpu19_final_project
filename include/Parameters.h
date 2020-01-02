@@ -213,7 +213,10 @@ struct parameters {
     std::string RestartDirName;
     /** name of the file with wave amplitude and phases */
     std::string WaveFile;
-
+    
+    /** threads per block (for CUDA execution configuration) */
+    int tpb;
+    
     /** batchsize */
     int batchsize;
 };

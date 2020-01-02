@@ -5,7 +5,6 @@
 #include "GPUAllocation.h"
 #include <stdio.h>
 
-#define TPB 128  // 128, 256 or 512
 #define STREAMS 2  // number of streams for each computation on the GPU
 
 /** allocate particle arrays */
@@ -393,7 +392,7 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     for (int s_id=0; s_id<STREAMS; ++s_id)
     {   
         // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
-        mover_PC_gpu<<<(np_stream[s_id]+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset[s_id], np_stream[s_id]);
+        mover_PC_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset[s_id], np_stream[s_id]);
     }
 
     // Retrieve data from the device (trigger asynchronous copy)
@@ -594,7 +593,7 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 }
 
 /* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
+int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
 {
     // Copy interpDensSpecies struct to device
     interpDensSpecies* ids_gpu;
@@ -633,7 +632,7 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     for (int s_id=0; s_id<STREAMS; ++s_id)
     {
         // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
-        interpP2G_gpu<<<(np_stream[s_id]+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset[s_id], np_stream[s_id]);
+        interpP2G_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset[s_id], np_stream[s_id]);
     }
 
     // wait for GPU operations to finish and destroy streams
