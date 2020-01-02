@@ -283,6 +283,9 @@ void readInputFile(struct parameters* param, int argc, char **argv)
     // read batchsize
     int batchsize_default = *std::max_element(param->np, param->np+param->ns);  // use only one batch by default
     param->batchsize = config.read < int >("batchsize", batchsize_default);
+
+    // read number of streams
+    param->n_streams = config.read < int >("n_streams", 1);
 }
 
 /** Print Simulation Parameters */
@@ -311,6 +314,7 @@ void printParameters(struct parameters* param)
     std::cout << "--------------------------" << std::endl;
     std::cout << "Threads per block        = " << param->tpb << std::endl;
     std::cout << "Batchsize                = " << param->batchsize << std::endl;
+    std::cout << "Number of streams        = " << param->n_streams << std::endl;
 }
 
 
@@ -357,6 +361,7 @@ void saveParameters(struct parameters* param)
     my_file << "---------------------------" << std::endl;
     my_file << "Threads per block        = " << param->tpb << std::endl;
     my_file << "Batchsize                = " << param->batchsize << std::endl;
+    my_file << "Number of streams        = " << param->n_streams << std::endl;
     my_file << "---------------------------" << std::endl;
     my_file << "Results saved in: " << param->SaveDirName << std::endl;
     my_file << "Restart saved in: " << param->RestartDirName << std::endl;

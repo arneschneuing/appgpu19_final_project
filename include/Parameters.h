@@ -219,5 +219,8 @@ struct parameters {
     
     /** batchsize */
     int batchsize;
+
+    /** number of CUDA streams */
+    int n_streams;
 };
 #endif

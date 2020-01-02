@@ -5,7 +5,6 @@
 #include "GPUAllocation.h"
 #include <stdio.h>
 
-#define STREAMS 2  // number of streams for each computation on the GPU
 
 /** allocate particle arrays */
 void particle_allocate(struct parameters* param, struct particles* part, int is)
@@ -367,13 +366,13 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     // Divide the particle data in segments and use streams to overlap data transfer and computation //
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Prepare auxiliary variables
-    long pps = ceil(part->npmax / STREAMS);  // particles per stream
-    long stream_offset[STREAMS];             // array segment offset
-    long np_stream[STREAMS];                 // number of particles in stream
+    long pps = ceil(part->npmax / param->n_streams);  // particles per stream
+    long stream_offset[param->n_streams];             // array segment offset
+    long np_stream[param->n_streams];                 // number of particles in stream
 
     // Create cuda streams and offsets and assign a number of particles to each stream
-    cudaStream_t stream[STREAMS];
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    cudaStream_t stream[param->n_streams];
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {
         cudaStreamCreate(&stream[s_id]);
         
@@ -386,21 +385,21 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Trigger asynchronous copy for each stream
     particles* part_gpu;
-    particle_move2gpu(part, &part_gpu, STREAMS, stream, stream_offset, np_stream);
+    particle_move2gpu(part, &part_gpu, param->n_streams, stream, stream_offset, np_stream);
 
     // Launch kernels for each stream
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {   
         // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
         mover_PC_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset[s_id], np_stream[s_id]);
     }
 
     // Retrieve data from the device (trigger asynchronous copy)
-    particle_move2cpu(part_gpu, part, STREAMS, stream, stream_offset, np_stream);
+    particle_move2cpu(part_gpu, part, param->n_streams, stream, stream_offset, np_stream);
     
     // wait for GPU operations to finish and destroy streams
     cudaDeviceSynchronize();
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {
         cudaStreamDestroy(stream[s_id]);
     }
@@ -607,13 +606,13 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     // Divide the particle data in segments and use streams to overlap data transfer and computation //
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Prepare auxiliary variables
-    long pps = ceil(part->npmax / STREAMS);  // particles per stream
-    long stream_offset[STREAMS];             // array segment offset
-    long np_stream[STREAMS];                 // number of particles in stream
+    long pps = ceil(part->npmax / param->n_streams);  // particles per stream
+    long stream_offset[param->n_streams];             // array segment offset
+    long np_stream[param->n_streams];                 // number of particles in stream
 
     // Create cuda streams and offsets and assign a number of particles to each stream
-    cudaStream_t stream[STREAMS];
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    cudaStream_t stream[param->n_streams];
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {
         cudaStreamCreate(&stream[s_id]);
         
@@ -626,10 +625,10 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
 
     // Trigger asynchronous copy for each stream
     particles* part_gpu;
-    particle_move2gpu(part, &part_gpu, STREAMS, stream, stream_offset, np_stream);
+    particle_move2gpu(part, &part_gpu, param->n_streams, stream, stream_offset, np_stream);
 
     // Launch kernels for each stream
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {
         // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
         interpP2G_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset[s_id], np_stream[s_id]);
@@ -637,7 +636,7 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
 
     // wait for GPU operations to finish and destroy streams
     cudaDeviceSynchronize();
-    for (int s_id=0; s_id<STREAMS; ++s_id)
+    for (int s_id=0; s_id<param->n_streams; ++s_id)
     {
         cudaStreamDestroy(stream[s_id]);
     }
