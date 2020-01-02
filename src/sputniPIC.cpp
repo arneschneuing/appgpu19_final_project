@@ -127,7 +127,7 @@ int main(int argc, char **argv){
         {
             for (int ib=0; ib<nobs[is]; ++ib)
             {
-                interpP2G_gpu_launch(&part_batches[is][ib], &ids[is], &grd);
+                interpP2G_gpu_launch(&part_batches[is][ib], &ids[is], &grd, &param);
                 std::cout << "species index: " << is << ", batch index: " << ib << std::endl;
             }
         }
@@ -139,6 +139,7 @@ int main(int argc, char **argv){
         // interpolate charge density from center to node
         applyBCscalarDensN(idn.rhon,&grd,&param);
         
+        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
         
         
         // write E, B, rho to disk
@@ -147,7 +148,6 @@ int main(int argc, char **argv){
             VTK_Write_Scalars(cycle, &grd,ids,&idn);
         }
         
-        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
         
         
     

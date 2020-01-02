@@ -277,6 +277,9 @@ void readInputFile(struct parameters* param, int argc, char **argv)
     param->SaveDirName = config.read < string > ("SaveDirName");
     param->RestartDirName = config.read < string > ("RestartDirName");
 
+    // read threads per block
+    param->tpb = config.read < int >("tpb", 128);    
+    
     // read batchsize
     int batchsize_default = *std::max_element(param->np, param->np+param->ns);  // use only one batch by default
     param->batchsize = config.read < int >("batchsize", batchsize_default);
@@ -292,7 +295,6 @@ void printParameters(struct parameters* param)
     std::cout << "Number of species    = " << param->ns << std::endl;
     for (int i = 0; i < param->ns; i++)
         std::cout << "Number of particles of species " << i << " = " << param->np[i] << "\t (MAX = " << param->npMax[i] << ")" << "  QOM = " << param->qom[i] << std::endl;
-    std::cout << "Batchsize                = " << param->batchsize << std::endl;
     std::cout << "x-Length                 = " << param->Lx << std::endl;
     std::cout << "y-Length                 = " << param->Ly << std::endl;
     std::cout << "z-Length                 = " << param->Lz << std::endl;
@@ -302,6 +304,13 @@ void printParameters(struct parameters* param)
     std::cout << "Time step                = " << param->dt << std::endl;
     std::cout << "Number of cycles         = " << param->ncycles << std::endl;
     std::cout << "Results saved in: " << param->SaveDirName << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "--------------------------" << std::endl;
+    std::cout << "GPU Computation Parameters" << std::endl;
+    std::cout << "--------------------------" << std::endl;
+    std::cout << "Threads per block        = " << param->tpb << std::endl;
+    std::cout << "Batchsize                = " << param->batchsize << std::endl;
 }
 
 
@@ -324,8 +333,6 @@ void saveParameters(struct parameters* param)
     for (int i = 0; i < param->ns; i++)
         my_file << "Number of particles of species " << i << " = " << param->np[i] << "\t (MAX = " << param->npMax[i] << ")" << "  QOM = " << param->qom[i] << std::endl;
     my_file << "---------------------------" << std::endl;
-    my_file << "Batchsize                = " << param->batchsize << std::endl;
-    my_file << "---------------------------" << std::endl;
     my_file << "x-Length                 = " << param->Lx << std::endl;
     my_file << "y-Length                 = " << param->Ly << std::endl;
     my_file << "z-Length                 = " << param->Lz << std::endl;
@@ -347,6 +354,9 @@ void saveParameters(struct parameters* param)
     my_file << "GMRES error tolerance    = " << param->GMREStol << std::endl;
     my_file << "CG error tolerance       = " << param->CGtol << std::endl;
     my_file << "Mover error tolerance    = " << param->NiterMover << std::endl;
+    my_file << "---------------------------" << std::endl;
+    my_file << "Threads per block        = " << param->tpb << std::endl;
+    my_file << "Batchsize                = " << param->batchsize << std::endl;
     my_file << "---------------------------" << std::endl;
     my_file << "Results saved in: " << param->SaveDirName << std::endl;
     my_file << "Restart saved in: " << param->RestartDirName << std::endl;
