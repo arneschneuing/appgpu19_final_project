@@ -5,7 +5,6 @@
 #include "GPUAllocation.h"
 #include <stdio.h>
 
-#define TPB 128
 
 /** allocate particle arrays */
 void particle_allocate(struct parameters* param, struct particles* part, int is)
@@ -269,7 +268,7 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
 
     // Call kernel
-    mover_PC_gpu<<<(part->nop+TPB-1)/TPB, TPB>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
+    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
