@@ -5,7 +5,6 @@
 #include "GPUAllocation.h"
 #include <stdio.h>
 
-#define TPB 128  // 128, 256 or 512
 
 /** allocate particle arrays */
 void particle_allocate(struct parameters* param, struct particles* part, int is)
@@ -269,13 +268,10 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
 
     // Call kernel
-    mover_PC_gpu<<<(part->nop+TPB-1)/TPB, TPB>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
+    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
-    emfield_move2cpu(field_gpu, field, grd);
-    grid_move2cpu(grd_gpu, grd);
-    cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
@@ -475,7 +471,7 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     grid_move2gpu(grd, &grd_gpu);
 
     // Call kernel
-    interpP2G_gpu<<<(part->nop+TPB-1)/TPB, TPB>>>(part_gpu, ids_gpu, grd_gpu);
+    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, ids_gpu, grd_gpu);
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);

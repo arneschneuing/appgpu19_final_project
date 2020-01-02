@@ -112,6 +112,7 @@ int main(int argc, char **argv){
         // interpolate charge density from center to node
         applyBCscalarDensN(idn.rhon,&grd,&param);
         
+        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
         
         
         // write E, B, rho to disk
@@ -120,7 +121,6 @@ int main(int argc, char **argv){
             VTK_Write_Scalars(cycle, &grd,ids,&idn);
         }
         
-        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
         
         
     
