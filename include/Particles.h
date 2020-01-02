@@ -65,9 +65,6 @@ int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct
 /* launcher for GPU version of the P2G interpolation */
 int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd);
 
-/** Interpolation Particle --> Grid: This is for species */
-void interpP2G(struct particles*, struct interpDensSpecies*, struct grid*);
-
 /**
 * Create batches of particles
 * 

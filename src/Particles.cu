@@ -364,37 +364,40 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     cudaMalloc(&param_gpu, sizeof(parameters));
     cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
 
-    // Create cuda streams
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Divide the particle data in segments and use streams to overlap data transfer and computation //
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Prepare auxiliary variables
+    int pps = ceil(part->npmax / STREAMS);  // particles per stream
+    int stream_offset[STREAMS];             // array segment offset
+    int np_stream[STREAMS];                 // number of particles in stream
+
+    // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[STREAMS];
     for (int s_id=0; s_id<STREAMS; ++s_id)
     {
         cudaStreamCreate(&stream[s_id]);
-    }
-
-    // Prepare stream computation
-    int pps = ceil(part->npmax / STREAMS);  // particles per stream
-    int stream_offset;
-    int nps;  // number of particles in current stream
-    particles* part_gpu;
-
-    // Divide the particle data in segments and use streams to overlap data transfer and computation
-    for (int s_id=0; s_id<STREAMS; ++s_id)
-    {
+        
         // Compute offset to specify start of array segments
-        stream_offset = s_id * pps;
+        stream_offset[s_id] = s_id * pps;
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
-        nps = std::min(pps, part->npmax - stream_offset);
-
-        // Copy segment of the particles struct to device
-        particle_move2gpu(part, &part_gpu, stream[s_id], stream_offset, nps);
-
-        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
-        mover_PC_gpu<<<(nps+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset, nps);
-
-        // Retrieve data from the device
-        particle_move2cpu(part_gpu, part, stream[s_id], stream_offset, nps);
+        np_stream[s_id] = std::min(pps, part->nop - stream_offset); 
     }
+
+    // Trigger asynchronous copy for each stream
+    particles* part_gpu;
+    particle_move2gpu(part, &part_gpu, STREAMS, stream, stream_offset, np_stream);
+
+    // Launch kernels for each stream
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {   
+        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
+        mover_PC_gpu<<<(np_stream[s_id]+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset[s_id], np_stream[s_id]);
+    }
+
+    // Retrieve data from the device (trigger asynchronous copy)
+    particle_move2cpu(part_gpu, part, STREAMS, stream, stream_offset, np_stream);
     
     // wait for GPU operations to finish and destroy streams
     cudaDeviceSynchronize();
@@ -601,33 +604,36 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     grid* grd_gpu;
     grid_move2gpu(grd, &grd_gpu);
 
-    // Create cuda streams
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Divide the particle data in segments and use streams to overlap data transfer and computation //
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Prepare auxiliary variables
+    int pps = ceil(part->npmax / STREAMS);  // particles per stream
+    int stream_offset[STREAMS];             // array segment offset
+    int np_stream[STREAMS];                 // number of particles in stream
+
+    // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[STREAMS];
     for (int s_id=0; s_id<STREAMS; ++s_id)
     {
         cudaStreamCreate(&stream[s_id]);
-    }
-
-    // Prepare stream computation
-    int pps = ceil(part->npmax / STREAMS);  // particles per stream
-    int stream_offset;
-    int nps;  // number of particles in current stream
-    particles* part_gpu;
-
-    // Divide the particle data in segments and use streams to overlap data transfer and computation
-    for (int s_id=0; s_id<STREAMS; ++s_id)
-    {
+        
         // Compute offset to specify start of array segments
-        stream_offset = s_id * pps;
+        stream_offset[s_id] = s_id * pps;
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
-        nps = std::min(pps, part->npmax - stream_offset);
+        np_stream[s_id] = std::min(pps, part->nop - stream_offset); 
+    }
 
-        // Copy segment of the particles struct to device
-        particle_move2gpu(part, &part_gpu, stream[s_id], stream_offset, nps);
+    // Trigger asynchronous copy for each stream
+    particles* part_gpu;
+    particle_move2gpu(part, &part_gpu, STREAMS, stream, stream_offset, np_stream);
 
+    // Launch kernels for each stream
+    for (int s_id=0; s_id<STREAMS; ++s_id)
+    {
         // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
-        interpP2G_gpu<<<(nps+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset, nps);
+        interpP2G_gpu<<<(np_stream[s_id]+TPB-1)/TPB, TPB, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset[s_id], np_stream[s_id]);
     }
 
     // wait for GPU operations to finish and destroy streams
@@ -646,160 +652,4 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     grid_deallocate_gpu(grd_gpu);
 
     return 0;
-}
-
-/** Interpolation Particle --> Grid: This is for species */
-void interpP2G(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
-{
-    
-    // arrays needed for interpolation
-    FPpart weight[2][2][2];
-    FPpart temp[2][2][2];
-    FPpart xi[2], eta[2], zeta[2];
-    
-    // index of the cell
-    int ix, iy, iz;
-    
-    
-    for (register long long i = 0; i < part->nop; i++) {
-
-        // determine cell: can we change to int()? is it faster?
-        ix = 2 + int (floor((part->x[i] - grd->xStart) * grd->invdx));
-        iy = 2 + int (floor((part->y[i] - grd->yStart) * grd->invdy));
-        iz = 2 + int (floor((part->z[i] - grd->zStart) * grd->invdz));
-        
-        // distances from node
-        xi[0]   = part->x[i] - grd->XN[ix - 1][iy][iz];
-        eta[0]  = part->y[i] - grd->YN[ix][iy - 1][iz];
-        zeta[0] = part->z[i] - grd->ZN[ix][iy][iz - 1];
-        xi[1]   = grd->XN[ix][iy][iz] - part->x[i];
-        eta[1]  = grd->YN[ix][iy][iz] - part->y[i];
-        zeta[1] = grd->ZN[ix][iy][iz] - part->z[i];
-        
-        // calculate the weights for different nodes
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    weight[ii][jj][kk] = part->q[i] * xi[ii] * eta[jj] * zeta[kk] * grd->invVOL;
-        
-        //////////////////////////
-        // add charge density
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->rhon[ix - ii][iy - jj][iz - kk] += weight[ii][jj][kk] * grd->invVOL;
-        
-        
-        ////////////////////////////
-        // add current density - Jx
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->u[i] * weight[ii][jj][kk];
-        
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->Jx[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        ////////////////////////////
-        // add current density - Jy
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->v[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->Jy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        
-        ////////////////////////////
-        // add current density - Jz
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->w[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->Jz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        ////////////////////////////
-        // add pressure pxx
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->u[i] * part->u[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->pxx[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        ////////////////////////////
-        // add pressure pxy
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->u[i] * part->v[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->pxy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        
-        /////////////////////////////
-        // add pressure pxz
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->u[i] * part->w[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->pxz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        /////////////////////////////
-        // add pressure pyy
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->v[i] * part->v[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->pyy[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        /////////////////////////////
-        // add pressure pyz
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->v[i] * part->w[i] * weight[ii][jj][kk];
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    ids->pyz[ix - ii][iy - jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-        
-        
-        /////////////////////////////
-        // add pressure pzz
-        for (int ii = 0; ii < 2; ii++)
-            for (int jj = 0; jj < 2; jj++)
-                for (int kk = 0; kk < 2; kk++)
-                    temp[ii][jj][kk] = part->w[i] * part->w[i] * weight[ii][jj][kk];
-        for (int ii=0; ii < 2; ii++)
-            for (int jj=0; jj < 2; jj++)
-                for(int kk=0; kk < 2; kk++)
-                    ids->pzz[ix -ii][iy -jj][iz - kk] += temp[ii][jj][kk] * grd->invVOL;
-    
-    }
-   
 }
