@@ -273,9 +273,6 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
     // Retrieve data from the device
     particle_move2cpu(part_gpu, part);
-    emfield_move2cpu(field_gpu, field, grd);
-    grid_move2cpu(grd_gpu, grd);
-    cudaMemcpy(param, param_gpu, sizeof(parameters), cudaMemcpyDeviceToHost);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
