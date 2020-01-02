@@ -174,10 +174,10 @@ void particle_batch_deallocate(struct particles* part_batches, int nob)
 
 /** particle mover */
 __global__
-void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param, int offset, int num_elem)
+void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param, long offset, long num_elem)
 {
     // get thread ID
-    const int id = blockIdx.x * blockDim.x + threadIdx.x;
+    int id = blockIdx.x * blockDim.x + threadIdx.x;
 
     // add offset to get global particle ID
     id = offset + id;
@@ -368,9 +368,9 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
     // Divide the particle data in segments and use streams to overlap data transfer and computation //
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Prepare auxiliary variables
-    int pps = ceil(part->npmax / STREAMS);  // particles per stream
-    int stream_offset[STREAMS];             // array segment offset
-    int np_stream[STREAMS];                 // number of particles in stream
+    long pps = ceil(part->npmax / STREAMS);  // particles per stream
+    long stream_offset[STREAMS];             // array segment offset
+    long np_stream[STREAMS];                 // number of particles in stream
 
     // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[STREAMS];
@@ -382,7 +382,7 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
         stream_offset[s_id] = s_id * pps;
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
-        np_stream[s_id] = std::min(pps, part->nop - stream_offset); 
+        np_stream[s_id] = std::min(pps, part->nop - stream_offset[s_id]); 
     }
 
     // Trigger asynchronous copy for each stream
@@ -418,10 +418,10 @@ int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct gr
 
 /** Interpolation Particle --> Grid: This is for species */
 __global__
-void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, int offset, int num_elem)
+void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, long offset, long num_elem)
 { 
     // get thread ID
-    const int id = blockIdx.x * blockDim.x + threadIdx.x;
+    int id = blockIdx.x * blockDim.x + threadIdx.x;
 
     // add offset to get global particle ID
     id = offset + id;
@@ -608,9 +608,9 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     // Divide the particle data in segments and use streams to overlap data transfer and computation //
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Prepare auxiliary variables
-    int pps = ceil(part->npmax / STREAMS);  // particles per stream
-    int stream_offset[STREAMS];             // array segment offset
-    int np_stream[STREAMS];                 // number of particles in stream
+    long pps = ceil(part->npmax / STREAMS);  // particles per stream
+    long stream_offset[STREAMS];             // array segment offset
+    long np_stream[STREAMS];                 // number of particles in stream
 
     // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[STREAMS];
@@ -622,7 +622,7 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
         stream_offset[s_id] = s_id * pps;
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
-        np_stream[s_id] = std::min(pps, part->nop - stream_offset); 
+        np_stream[s_id] = std::min(pps, part->nop - stream_offset[s_id]); 
     }
 
     // Trigger asynchronous copy for each stream

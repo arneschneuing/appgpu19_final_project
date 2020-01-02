@@ -1,10 +1,10 @@
 #include "Particles.h"
 
 /** move particle array to GPU */
-void particle_move2gpu(struct particles* part, struct particles** part_gpu, int n_streams, cudaStream_t* stream, int* offset, int* np_stream);
+void particle_move2gpu(struct particles* part, struct particles** part_gpu, int n_streams, cudaStream_t* stream, long* offset, long* np_stream);
 
 /** move particle array to CPU */
-void particle_move2cpu(struct particles* part_gpu, struct particles* part, , int n_streams, cudaStream_t* stream, int* offset, int* np_stream);
+void particle_move2cpu(struct particles* part_gpu, struct particles* part, int n_streams, cudaStream_t* stream, long* offset, long* np_stream);
 
 /** deallocate */
 void particle_deallocate_gpu(struct particles* part_gpu);
