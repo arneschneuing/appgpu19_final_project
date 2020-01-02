@@ -458,7 +458,7 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 }
 
 /* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
+int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
 {
     // Allocate memory and move data to the GPU
     particles* part_gpu;
