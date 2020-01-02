@@ -474,9 +474,7 @@ int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, 
     interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, ids_gpu, grd_gpu);
 
     // Retrieve data from the device
-    particle_move2cpu(part_gpu, part);
     ids_move2cpu(ids_gpu, ids, grd);
-    grid_move2cpu(grd_gpu, grd);
 
     // Free the memory
     particle_deallocate_gpu(part_gpu);
