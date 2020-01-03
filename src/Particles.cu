@@ -248,10 +248,10 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 }
 
 /* launch GPU version of the particle mover */
-int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
+int mover_PC_gpu_launch(struct particles* part_gpu, struct EMfield* field_gpu, struct grid* grd_gpu, struct parameters* param_gpu, int nop, int tpb)
 {   
     // Call kernel
-    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, field, grd, param);
+    mover_PC_gpu<<<(nop+tpb-1)/tpb, tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
 
     return 0;
 }
@@ -432,10 +432,10 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 }
 
 /* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
+int interpP2G_gpu_launch(struct particles* part_gpu, struct interpDensSpecies* ids_gpu, struct grid* grd_gpu, int nop, int tpb)
 {
     // Call kernel
-    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, ids, grd);
+    interpP2G_gpu<<<(nop+tpb-1)/tpb, tpb>>>(part_gpu, ids_gpu, grd_gpu);
 
     return 0;
 }

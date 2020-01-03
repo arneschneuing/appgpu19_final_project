@@ -90,9 +90,9 @@ int main(int argc, char **argv){
     for (int is=0; is < param.ns; is++)
     {
         particle_move2gpu(&part[is], &part_gpu[is]);
-        ids_move2gpu(&ids[is], &ids_gpu[is], grd);
+        ids_move2gpu(&ids[is], &ids_gpu[is], &grd);
     }
-    emfield_move2gpu(&field, &field_gpu, grd);
+    emfield_move2gpu(&field, &field_gpu, &grd);
     grid_move2gpu(&grd, &grd_gpu);
     cudaMalloc(&param_gpu, sizeof(parameters));
     cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
@@ -115,7 +115,8 @@ int main(int argc, char **argv){
         // implicit mover
         iMover = cpuSecond(); // start timer for mover
         for (int is=0; is < param.ns; is++)
-            mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu);
+            mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu, part[is].nop, param.tpb);
+        cudaDeviceSynchronize();
         eMover += (cpuSecond() - iMover); // stop timer for mover
         
         
@@ -126,7 +127,7 @@ int main(int argc, char **argv){
         // interpolate species
         for (int is=0; is < param.ns; is++)
         {
-            interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, param_gpu);
+            interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, part[is].nop, param.tpb);
 
             // Retrieve data from the device
             ids_move2cpu(ids_gpu[is], &ids[is], &grd);

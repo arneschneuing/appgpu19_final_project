@@ -59,10 +59,10 @@ void particle_allocate(struct parameters*, struct particles*, int);
 void particle_deallocate(struct particles*);
 
 /** launcher for gpu particle mover */
-int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct parameters*);
+int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct parameters*, int, int);
 
 /* launcher for GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct grid*, struct parameters*);
+int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct grid*, int, int);
 
 /** Interpolation Particle --> Grid: This is for species */
 void interpP2G(struct particles*, struct interpDensSpecies*, struct grid*);
