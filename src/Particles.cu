@@ -247,16 +247,6 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
     return; // exit
 }
 
-/* launch GPU version of the particle mover */
-int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
-{   
-    // Call kernel
-    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, field, grd, param);
-
-    return 0;
-}
-
-
 /** Interpolation Particle --> Grid: This is for species */
 __global__
 void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd)
@@ -429,15 +419,6 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
     
     }
    
-}
-
-/* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
-{
-    // Call kernel
-    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, ids, grd);
-
-    return 0;
 }
 
 /** Interpolation Particle --> Grid: This is for species */
