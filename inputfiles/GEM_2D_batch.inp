@@ -62,5 +62,11 @@ PoissonCorrection=true
 # SubCycles
 n_sub_cycles = 1
 
+# Threads per block
+tpb = 128
+
 # Mini-batch size
 batchsize = 1500000
+
+# Number of streams
+n_streams = 2
