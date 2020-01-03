@@ -85,13 +85,15 @@ int main(int argc, char **argv){
     grid* grd_gpu;
     parameters* param_gpu;
     interpDensSpecies* ids_gpu[param.ns];
+    interpDensSpecies *ids_tmp = new interpDensSpecies[param.ns];  // container to make device pointers accessible from the host
     
     // Allocate memory and move data to the GPU
     for (int is=0; is < param.ns; is++)
     {
         particle_move2gpu(&part[is], &part_gpu[is]);
-        ids_move2gpu(&ids[is], &ids_gpu[is], &grd);
-    }
+        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
+        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
+    }  
     emfield_move2gpu(&field, &field_gpu, &grd);
     grid_move2gpu(&grd, &grd_gpu);
     cudaMalloc(&param_gpu, sizeof(parameters));
@@ -127,10 +129,11 @@ int main(int argc, char **argv){
         // interpolate species
         for (int is=0; is < param.ns; is++)
         {
+            ids_move2gpu(&ids[is], &ids_tmp[is], &grd);
             interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, part[is].nop, param.tpb);
 
             // Retrieve data from the device
-            ids_move2cpu(ids_gpu[is], &ids[is], &grd);
+            ids_move2cpu(&ids_tmp[is], &ids[is], &grd);
         } 
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
