@@ -55,7 +55,7 @@ void particle_move2gpu(struct particles* part, struct particles** part_gpu)
     part->w = w_gpu;
     part->q = q_gpu;
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU (pointers are pointing to device addresses)
     cudaMemcpy(*part_gpu, part, sizeof(particles), cudaMemcpyHostToDevice); 
 
     // Restore host pointers
@@ -133,6 +133,7 @@ void particle_deallocate_gpu(struct particles* part_gpu)
     cudaFree(part_tmp->w);
     cudaFree(part_tmp->q);
     cudaFree(part_gpu);
+    delete[] part_tmp;
 }
 
 
@@ -186,7 +187,7 @@ void emfield_move2gpu(struct EMfield* field, struct EMfield** field_gpu, struct 
     field->Bzn_flat = Bzn_flat_gpu;
 
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU (pointers are pointing to device addresses)
     cudaMemcpy(*field_gpu, field, sizeof(EMfield), cudaMemcpyHostToDevice); 
 
     // Restore host pointers
@@ -257,6 +258,7 @@ void emfield_deallocate_gpu(struct EMfield* field_gpu)
     cudaFree(field_tmp->Byn_flat);
     cudaFree(field_tmp->Bzn_flat);
     cudaFree(field_gpu);
+    delete[] field_tmp; 
 }
 
 
@@ -292,7 +294,7 @@ void grid_move2gpu(struct grid* grd, struct grid** grd_gpu)
     grd->ZN_flat = ZN_flat_gpu;
 
 
-    // Move data to the GPU (pointers still pointing to host addresses)
+    // Move data to the GPU (pointers are pointing to device addresses)
     cudaMemcpy(*grd_gpu, grd, sizeof(grid), cudaMemcpyHostToDevice); 
 
     // Restore host pointers
@@ -343,6 +345,7 @@ void grid_deallocate_gpu(struct grid* grd_gpu)
     cudaFree(grd_tmp->ZN_flat);
 
     cudaFree(grd_gpu);
+    delete[] grd_tmp;
 }
 
 /**
