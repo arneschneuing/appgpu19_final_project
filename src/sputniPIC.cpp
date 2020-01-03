@@ -30,6 +30,8 @@
 // Read and output operations
 #include "RW_IO.h"
 
+#include "GPUAllocation.h"
+
 
 int main(int argc, char **argv){
     
@@ -73,7 +75,27 @@ int main(int argc, char **argv){
     
     // Initialization
     initGEM(&param,&grd,&field,&field_aux,part,ids);
+
+    /////////////////////////
+    // GPU data management //
+    /////////////////////////
+    // Declare GPU variables
+    particles* part_gpu[param.ns];
+    EMfield* field_gpu;
+    grid* grd_gpu;
+    parameters* param_gpu;
+    interpDensSpecies* ids_gpu[param.ns];
     
+    // Allocate memory and move data to the GPU
+    for (int is=0; is < param.ns; is++)
+    {
+        particle_move2gpu(&part[is], &part_gpu[is]);
+        ids_move2gpu(&ids[is], &ids_gpu[is], grd);
+    }
+    emfield_move2gpu(&field, &field_gpu, grd);
+    grid_move2gpu(&grd, &grd_gpu);
+    cudaMalloc(&param_gpu, sizeof(parameters));
+    cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -93,7 +115,7 @@ int main(int argc, char **argv){
         // implicit mover
         iMover = cpuSecond(); // start timer for mover
         for (int is=0; is < param.ns; is++)
-            mover_PC_gpu_launch(&part[is],&field,&grd,&param);
+            mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu);
         eMover += (cpuSecond() - iMover); // stop timer for mover
         
         
@@ -103,7 +125,12 @@ int main(int argc, char **argv){
         iInterp = cpuSecond(); // start timer for the interpolation step
         // interpolate species
         for (int is=0; is < param.ns; is++)
-            interpP2G_gpu_launch(&part[is],&ids[is],&grd,&param);
+        {
+            interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, param_gpu);
+
+            // Retrieve data from the device
+            ids_move2cpu(ids_gpu[is], &ids[is], &grd);
+        } 
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
@@ -138,7 +165,16 @@ int main(int argc, char **argv){
         interp_dens_species_deallocate(&grd,&ids[is]);
         particle_deallocate(&part[is]);
     }
-    
+
+    // Free GPU memory
+    for (int is=0; is < param.ns; is++)
+    {
+        particle_deallocate_gpu(part_gpu[is]);
+        ids_deallocate_gpu(ids_gpu[is]);
+    }
+    emfield_deallocate_gpu(field_gpu);
+    grid_deallocate_gpu(grd_gpu);
+    cudaFree(param_gpu);    
     
     // stop timer
     double iElaps = cpuSecond() - iStart;

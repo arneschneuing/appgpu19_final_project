@@ -2,7 +2,6 @@
 #include "Alloc.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "GPUAllocation.h"
 #include <stdio.h>
 
 
@@ -250,34 +249,9 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 
 /* launch GPU version of the particle mover */
 int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
-{
-    // Allocate memory on the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
-    EMfield* field_gpu;
-    emfield_move2gpu(field, &field_gpu, grd);
-
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-    
-    parameters* param_gpu;
-    cudaMalloc(&param_gpu, sizeof(parameters));
-
-    // Move data to the GPU
-    cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
-
+{   
     // Call kernel
-    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
-
-    // Retrieve data from the device
-    particle_move2cpu(part_gpu, part);
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    emfield_deallocate_gpu(field_gpu);
-    grid_deallocate_gpu(grd_gpu);
-    cudaFree(param_gpu);
+    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, field, grd, param);
 
     return 0;
 }
@@ -460,26 +434,8 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 /* launch GPU version of the P2G interpolation */
 int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
 {
-    // Allocate memory and move data to the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
-    interpDensSpecies* ids_gpu;
-    ids_move2gpu(ids, &ids_gpu, grd);
-
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-
     // Call kernel
-    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, ids_gpu, grd_gpu);
-
-    // Retrieve data from the device
-    ids_move2cpu(ids_gpu, ids, grd);
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    ids_deallocate_gpu(ids_gpu);
-    grid_deallocate_gpu(grd_gpu);
+    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part, ids, grd);
 
     return 0;
 }
