@@ -137,22 +137,22 @@ int main(int argc, char **argv){
         
             // implicit mover
             iMover = cpuSecond(); // start timer for mover
+            // data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
+            if (param.nob > 1 || cycle == 1)
+            {
+                // Move new batch of particles to GPU
+                for (int is=0; is < param.ns; is++)
+                    particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is]);
+            }
             for (int is=0; is < param.ns; is++)
             {
-                // data movement can be reduced if all particles fit in GPU memory (transfer only in the first cycle)
-                if (param.nob > 1 || cycle == 1)
-                {
-                    // Move new batch of particles to GPU
-                    particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is]);
-                }
-
                 mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu, part_batches[is][ib].nop, param.tpb);
-
-                if (param.nob > 1)
-                {
-                    // Retrieve particle mover result
+            }
+            if (param.nob > 1)
+            {
+                // Retrieve particle mover result
+                for (int is=0; is < param.ns; is++)
                     particle_move2cpu(&part_tmp[is], &part_batches[is][ib]);
-                }
             }
             cudaDeviceSynchronize();
             eMover += (cpuSecond() - iMover); // stop timer for mover
