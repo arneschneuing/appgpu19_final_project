@@ -75,53 +75,21 @@ void particle_move2gpu(struct particles* part, struct particles* part_tmp, struc
     cudaMemcpy(*part_gpu, part_tmp, sizeof(particles), cudaMemcpyHostToDevice); 
 }
 
-/** move particle array to CPU */
-void particle_move2cpu(struct particles* part_gpu, struct particles* part)
-{   
-    // Create temporary copy of host pointers
-    FPpart* x_host = part->x;
-    FPpart* y_host = part->y;
-    FPpart* z_host = part->z;
-    FPpart* u_host = part->u;
-    FPpart* v_host = part->v;
-    FPpart* w_host = part->w;
-    FPinterp* q_host = part->q;
-
-    // Move data to the CPU
-    cudaMemcpy(part, part_gpu, sizeof(particles), cudaMemcpyDeviceToHost);
-
-    // Create temporary copy of device pointers
-    FPpart* x_device = part->x;
-    FPpart* y_device = part->y;
-    FPpart* z_device = part->z;
-    FPpart* u_device = part->u;
-    FPpart* v_device = part->v;
-    FPpart* w_device = part->w;
-    FPinterp* q_device = part->q;
-
-    // Restore host pointers
-    part->x = x_host;
-    part->y = y_host;
-    part->z = z_host;
-    part->u = u_host;
-    part->v = v_host;
-    part->w = w_host;
-    part->q = q_host;
-    
+/** 
+* move particle array to CPU 
+* @param part_tmp particles struct on the host containing device pointers
+* @param part particles struct on the host
+*/
+void particle_move2cpu(struct particles* part_tmp, struct particles* part)
+{     
     // move particle arrays
-    cudaMemcpy(part->x, x_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->y, y_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->z, z_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->u, u_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->v, v_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->w, w_device, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
-
-    cudaMemcpy(part->q, q_device, sizeof(FPinterp)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->x, part_tmp->x, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->y, part_tmp->y, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->z, part_tmp->z, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->u, part_tmp->u, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->v, part_tmp->v, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->w, part_tmp->w, sizeof(FPpart)*part->npmax, cudaMemcpyDeviceToHost);
+    cudaMemcpy(part->q, part_tmp->q, sizeof(FPinterp)*part->npmax, cudaMemcpyDeviceToHost);
 }
 
 /** deallocate */

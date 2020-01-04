@@ -18,8 +18,12 @@ void particle_allocate_gpu(struct particles* part_tmp, struct particles** part_g
 */
 void particle_move2gpu(struct particles* part, struct particles* part_tmp, struct particles** part_gpu);
 
-/** move particle array to CPU */
-void particle_move2cpu(struct particles* part_gpu, struct particles* part);
+/** 
+* move particle array to CPU 
+* @param part_tmp particles struct on the host containing device pointers
+* @param part particles struct on the host
+*/
+void particle_move2cpu(struct particles* part_tmp, struct particles* part);
 
 /** deallocate */
 void particle_deallocate_gpu(struct particles* part_gpu);
