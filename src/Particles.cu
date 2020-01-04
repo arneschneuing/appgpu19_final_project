@@ -2,7 +2,6 @@
 #include "Alloc.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "GPUAllocation.h"
 #include <stdio.h>
 
 
@@ -75,22 +74,16 @@ void particle_deallocate(struct particles* part)
     delete[] part->q;
 }
 
-/** Compute number of batches */
-int get_nob(int nop, int batchsize)
-{
-    return (nop + batchsize - 1) / batchsize;
-}
-
 /** Create batches of particles */
 int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches)
 {
-    // Compute number of batches
-    int nob = get_nob(part->nop, param->batchsize);
+    // Compute batchsize
+    int batchsize = ceil(part->nop / param->nob);
 
     // Fill one batch at a time with particle data
-    *part_batches = new particles[nob];
+    *part_batches = new particles[param->nob];
 
-    for (int batch_id=0; batch_id<nob; ++batch_id) {
+    for (int batch_id=0; batch_id<param->nob; ++batch_id) {
         // copy structure, pointers will still point to the same memory address
         (*part_batches)[batch_id] = *part;
 
@@ -99,19 +92,19 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
         //////////////////////////////////////
 
         // number of particles
-        if (batch_id == nob-1) {
+        if (batch_id == param->nob-1) {
             // Last batch is a special case as it may contain fewer than batchsize particles
-            int batch_remainder = part->nop % param->batchsize;
+            int batch_remainder = part->nop % batchsize;
             if (batch_remainder == 0)
-                (*part_batches)[batch_id].nop = param->batchsize;
+                (*part_batches)[batch_id].nop = batchsize;
             else
                 (*part_batches)[batch_id].nop = batch_remainder;
         }
         else
-            (*part_batches)[batch_id].nop = param->batchsize;
+            (*part_batches)[batch_id].nop = batchsize;
 
         // maximum number of particles
-        long npmax = param->batchsize; // I am not really sure if we can just use the batchsize here... 
+        long npmax = batchsize; // I am not really sure if we can just use the batchsize here... 
         (*part_batches)[batch_id].npmax = npmax;
             
         ///////////////////////
@@ -128,16 +121,16 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
         (*part_batches)[batch_id].q = new FPinterp[npmax];
 
         // Copy the values
-        std::copy((part->x)+batch_id*param->batchsize, (part->x)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
-        std::copy((part->y)+batch_id*param->batchsize, (part->y)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].y);
-        std::copy((part->z)+batch_id*param->batchsize, (part->z)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].z);
-        std::copy((part->u)+batch_id*param->batchsize, (part->u)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].u);
-        std::copy((part->v)+batch_id*param->batchsize, (part->v)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].v);
-        std::copy((part->w)+batch_id*param->batchsize, (part->w)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].w);
-        std::copy((part->q)+batch_id*param->batchsize, (part->q)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].q);
+        std::copy((part->x)+batch_id*batchsize, (part->x)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
+        std::copy((part->y)+batch_id*batchsize, (part->y)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].y);
+        std::copy((part->z)+batch_id*batchsize, (part->z)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].z);
+        std::copy((part->u)+batch_id*batchsize, (part->u)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].u);
+        std::copy((part->v)+batch_id*batchsize, (part->v)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].v);
+        std::copy((part->w)+batch_id*batchsize, (part->w)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].w);
+        std::copy((part->q)+batch_id*batchsize, (part->q)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].q);
     }
 
-    return nob;
+    return batchsize;
 }
 
 /** Deallocate particle batches */
@@ -323,35 +316,10 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 }
 
 /* launch GPU version of the particle mover */
-int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
-{
-    // Allocate memory on the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
-    EMfield* field_gpu;
-    emfield_move2gpu(field, &field_gpu, grd);
-
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-    
-    parameters* param_gpu;
-    cudaMalloc(&param_gpu, sizeof(parameters));
-
-    // Move data to the GPU
-    cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
-
+int mover_PC_gpu_launch(struct particles* part_gpu, struct EMfield* field_gpu, struct grid* grd_gpu, struct parameters* param_gpu, int nop, int tpb)
+{   
     // Call kernel
-    mover_PC_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
-
-    // Retrieve data from the device
-    particle_move2cpu(part_gpu, part);
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    emfield_deallocate_gpu(field_gpu);
-    grid_deallocate_gpu(grd_gpu);
-    cudaFree(param_gpu);
+    mover_PC_gpu<<<(nop+tpb-1)/tpb, tpb>>>(part_gpu, field_gpu, grd_gpu, param_gpu);
 
     return 0;
 }
@@ -532,28 +500,10 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 }
 
 /* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
+int interpP2G_gpu_launch(struct particles* part_gpu, struct interpDensSpecies* ids_gpu, struct grid* grd_gpu, int nop, int tpb)
 {
-    // Allocate memory and move data to the GPU
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu);
-
-    interpDensSpecies* ids_gpu;
-    ids_move2gpu(ids, &ids_gpu, grd);
-
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-
     // Call kernel
-    interpP2G_gpu<<<(part->nop+param->tpb-1)/param->tpb, param->tpb>>>(part_gpu, ids_gpu, grd_gpu);
-
-    // Retrieve data from the device
-    ids_move2cpu(ids_gpu, ids, grd);
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    ids_deallocate_gpu(ids_gpu);
-    grid_deallocate_gpu(grd_gpu);
+    interpP2G_gpu<<<(nop+tpb-1)/tpb, tpb>>>(part_gpu, ids_gpu, grd_gpu);
 
     return 0;
 }

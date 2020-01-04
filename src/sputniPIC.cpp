@@ -30,6 +30,8 @@
 // Read and output operations
 #include "RW_IO.h"
 
+#include "GPUAllocation.h"
+
 
 int main(int argc, char **argv){
     
@@ -76,17 +78,39 @@ int main(int argc, char **argv){
 
     // Create mini-batches
     particles **part_batches = new particles*[param.ns];
-    int nobs[param.ns];  // number of batches per species
-    int nob;  // temporary variable to store the current species's number of batches
+    int batchsize[param.ns];  // batchsize might differ for different species
     for (int is=0; is < param.ns; is++){
-        nob = particle_batch_create(&param, &part[is], &part_batches[is]);
-        nobs[is] = nob;
+        batchsize[is] = particle_batch_create(&param, &part[is], &part_batches[is]);
     }
 
     // Deallocate (un-batched) particles
     for (int is=0; is < param.ns; is++){
         particle_deallocate(&part[is]);
-    }   
+    }
+
+    /////////////////////////
+    // GPU data management //
+    /////////////////////////
+    // Declare GPU variables
+    particles* part_gpu[param.ns];
+    particles *part_tmp = new particles[param.ns];  // container to make device pointers accessible from the host
+    EMfield* field_gpu;
+    grid* grd_gpu;
+    parameters* param_gpu;
+    interpDensSpecies* ids_gpu[param.ns];
+    interpDensSpecies *ids_tmp = new interpDensSpecies[param.ns];  // container to make device pointers accessible from the host
+    
+    // Allocate memory and move data to the GPU
+    for (int is=0; is < param.ns; is++)
+    {
+        particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
+        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
+        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
+    }  
+    emfield_move2gpu(&field, &field_gpu, &grd);
+    grid_move2gpu(&grd, &grd_gpu);
+    cudaMalloc(&param_gpu, sizeof(parameters));
+    cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -100,37 +124,51 @@ int main(int argc, char **argv){
     
         // set to zero the densities - needed for interpolation
         setZeroDensities(&idn,ids,&grd,param.ns);
-        
-        
-        
-        // implicit mover
-        iMover = cpuSecond(); // start timer for mover
-        std::cout << "* Particle Mover" << std::endl;
+
+        // Copy ids to device
+        iInterp = cpuSecond(); // start timer for the first part of the interpolation step
         for (int is=0; is < param.ns; is++)
+            ids_move2gpu(&ids[is], &ids_tmp[is], &grd);
+        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
+        
+        for (int ib=0; ib<param.nob; ++ib)
         {
-            for (int ib=0; ib<nobs[is]; ++ib)
+            std::cout << "batch index: " << ib << std::endl;
+        
+            // implicit mover
+            iMover = cpuSecond(); // start timer for mover
+            for (int is=0; is < param.ns; is++)
             {
-                mover_PC_gpu_launch(&part_batches[is][ib], &field, &grd, &param);
-                std::cout << "species index: "  << is << ", batch index: " << ib << std::endl;
+                if (param.nob > 1 || cycle == 1)  // data movement can be reduced if all particles fit in GPU memory (transfer only in the first cycle)
+                {
+                    // update scalar values in temporary structure
+                    part_tmp[is].nop = part_batches[is][ib].nop;
+                    // Move new batch of particles to GPU
+                    particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is]);
+                }
+
+                mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu, part_batches[is][ib].nop, param.tpb);
             }
+            cudaDeviceSynchronize();
+            eMover += (cpuSecond() - iMover); // stop timer for mover
+        
+        
+        
+        
+            // interpolation particle to grid
+            iInterp = cpuSecond(); // start timer for the interpolation step
+            // interpolate species
+            for (int is=0; is < param.ns; is++)
+            {
+                interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, part_batches[is][ib].nop, param.tpb);
+            } 
+            cudaDeviceSynchronize();
+            eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
         }
-        eMover += (cpuSecond() - iMover); // stop timer for mover
-        
-        
-        
-        
-        // interpolation particle to grid
-        iInterp = cpuSecond(); // start timer for the interpolation step
-        // interpolate species
-        std::cout << "* Interpolation P2G" << std::endl;
+        iInterp = cpuSecond(); // start timer for the rest of interpolation step
+        // Retrieve data from the device
         for (int is=0; is < param.ns; is++)
-        {
-            for (int ib=0; ib<nobs[is]; ++ib)
-            {
-                interpP2G_gpu_launch(&part_batches[is][ib], &ids[is], &grd, &param);
-                std::cout << "species index: " << is << ", batch index: " << ib << std::endl;
-            }
-        }
+            ids_move2cpu(&ids_tmp[is], &ids[is], &grd);
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
@@ -165,7 +203,16 @@ int main(int argc, char **argv){
         interp_dens_species_deallocate(&grd,&ids[is]);
         particle_batch_deallocate(part_batches[is], nobs[is]);
     }
-    
+
+    // Free GPU memory
+    for (int is=0; is < param.ns; is++)
+    {
+        particle_deallocate_gpu(part_gpu[is]);
+        ids_deallocate_gpu(ids_gpu[is]);
+    }
+    emfield_deallocate_gpu(field_gpu);
+    grid_deallocate_gpu(grd_gpu);
+    cudaFree(param_gpu);    
     
     // stop timer
     double iElaps = cpuSecond() - iStart;

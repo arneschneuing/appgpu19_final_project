@@ -280,9 +280,9 @@ void readInputFile(struct parameters* param, int argc, char **argv)
     // read threads per block
     param->tpb = config.read < int >("tpb", 128);    
     
-    // read batchsize
-    int batchsize_default = *std::max_element(param->np, param->np+param->ns);  // use only one batch by default
-    param->batchsize = config.read < int >("batchsize", batchsize_default);
+    // read number of batches
+    // int batchsize_default = *std::max_element(param->np, param->np+param->ns);  // use only one batch by default
+    param->nob = config.read < int >("nob", 1);
 }
 
 /** Print Simulation Parameters */
@@ -310,7 +310,7 @@ void printParameters(struct parameters* param)
     std::cout << "GPU Computation Parameters" << std::endl;
     std::cout << "--------------------------" << std::endl;
     std::cout << "Threads per block        = " << param->tpb << std::endl;
-    std::cout << "Batchsize                = " << param->batchsize << std::endl;
+    std::cout << "Number of batches        = " << param->nob << std::endl;
 }
 
 
@@ -356,7 +356,7 @@ void saveParameters(struct parameters* param)
     my_file << "Mover error tolerance    = " << param->NiterMover << std::endl;
     my_file << "---------------------------" << std::endl;
     my_file << "Threads per block        = " << param->tpb << std::endl;
-    my_file << "Batchsize                = " << param->batchsize << std::endl;
+    my_file << "Number of batches        = " << param->nob << std::endl;
     my_file << "---------------------------" << std::endl;
     my_file << "Results saved in: " << param->SaveDirName << std::endl;
     my_file << "Restart saved in: " << param->RestartDirName << std::endl;
