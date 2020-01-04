@@ -126,15 +126,17 @@ int main(int argc, char **argv){
         
         // interpolation particle to grid
         iInterp = cpuSecond(); // start timer for the interpolation step
+        // Copy ids to device
+        for (int is=0; is < param.ns; is++)
+            ids_move2gpu(&ids[is], &ids_tmp[is], &grd);
         // interpolate species
         for (int is=0; is < param.ns; is++)
         {
-            ids_move2gpu(&ids[is], &ids_tmp[is], &grd);
             interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, part[is].nop, param.tpb);
-
-            // Retrieve data from the device
-            ids_move2cpu(&ids_tmp[is], &ids[is], &grd);
         } 
+        // Retrieve data from the device
+        for (int is=0; is < param.ns; is++)
+            ids_move2cpu(&ids_tmp[is], &ids[is], &grd);
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
