@@ -148,7 +148,7 @@ int main(int argc, char **argv){
 
                 mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu, part_batches[is][ib].nop, param.tpb);
 
-                if (param.nob > 1 || cycle == 1)
+                if (param.nob > 1)
                 {
                     // Retrieve particle mover result
                     particle_move2cpu(&part_tmp[is], &part_batches[is][ib]);
