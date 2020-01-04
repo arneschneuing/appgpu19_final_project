@@ -78,7 +78,7 @@ void particle_deallocate(struct particles* part)
 int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches)
 {
     // Compute batchsize
-    int batchsize = ceil(part->nop / param->nob);
+    int batchsize = (part->nop+param->nob-1) / param->nob;  // equivalent to ceil operation
 
     // Fill one batch at a time with particle data
     *part_batches = new particles[param->nob];
