@@ -104,8 +104,8 @@ int main(int argc, char **argv){
     for (int is=0; is < param.ns; is++)
     {
         particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
-        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
         ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
+        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
     }  
     emfield_move2gpu(&field, &field_gpu, &grd);
     grid_move2gpu(&grd, &grd_gpu);
@@ -141,8 +141,6 @@ int main(int argc, char **argv){
             {
                 if (param.nob > 1 || cycle == 1)  // data movement can be reduced if all particles fit in GPU memory (transfer only in the first cycle)
                 {
-                    // update scalar values in temporary structure
-                    part_tmp[is].nop = part_batches[is][ib].nop;
                     // Move new batch of particles to GPU
                     particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is]);
                 }
@@ -201,7 +199,7 @@ int main(int argc, char **argv){
     // Deallocate interpolated densities and particles
     for (int is=0; is < param.ns; is++){
         interp_dens_species_deallocate(&grd,&ids[is]);
-        particle_batch_deallocate(part_batches[is], nobs[is]);
+        particle_batch_deallocate(part_batches[is], param.nob);
     }
 
     // Free GPU memory

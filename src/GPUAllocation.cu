@@ -56,6 +56,12 @@ void particle_allocate_gpu(struct particles* part_tmp, struct particles** part_g
 */
 void particle_move2gpu(struct particles* part, struct particles* part_tmp, struct particles** part_gpu)
 {   
+    // update relevant scalar values in temporary structure
+    part_tmp->nop = part->nop;
+    part_tmp->qom = part->qom;
+    part_tmp->n_sub_cycles = part->n_sub_cycles;
+    part_tmp->NiterMover = part->NiterMover;
+
     // Copy array values to the device
     cudaMemcpy(part_tmp->x, part->x, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
     cudaMemcpy(part_tmp->y, part->y, sizeof(FPpart)*part->npmax, cudaMemcpyHostToDevice);
