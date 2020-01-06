@@ -162,8 +162,8 @@ int main(int argc, char **argv){
     cudaEvent_t interp_sync[param.n_streams];
     for (int s_id=0; s_id<param.n_streams; ++s_id)
     {
-        cudaEventCreate(&mover_sync[s_id]);
-        cudaEventCreate(&interp_sync[s_id]);
+        cudaEventCreateWithFlags(&mover_sync[s_id], cudaEventDisableTiming);  // disables timing to increase performance and avoid synchronization issues
+        cudaEventCreateWithFlags(&interp_sync[s_id], cudaEventDisableTiming);
     }
     
     // **********************************************************//
