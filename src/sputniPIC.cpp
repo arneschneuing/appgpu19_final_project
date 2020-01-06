@@ -153,6 +153,15 @@ int main(int argc, char **argv){
         else
             np_stream_tot[s_id] = pps; 
     }
+
+    // Use events to synchronize streams whithout blocking the host
+    cudaEvent_t mover_sync[param.n_streams];
+    cudaEvent_t interp_sync[param.n_streams];
+    for (int s_id=0; s_id<param.n_streams; ++s_id)
+    {
+        cudaEventCreate(&mover_sync[s_id]);
+        cudaEventCreate(&interp_sync[s_id]);
+    }
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -222,7 +231,10 @@ int main(int argc, char **argv){
                         mover_PC_gpu_launch(part_gpu[is], field_gpu, grd_gpu, param_gpu, np_stream[is], param.tpb, stream[s_id], offset_stream[is]);
                 }
 
-                cudaStreamSynchronize(stream[s_id]);  // make sure all particles have been moved before continuing
+                // make sure all particles have been moved before continuing
+                cudaEventRecord(mover_sync[s_id], stream[s_id]);
+                cudaStreamWaitEvent(stream[s_id], mover_sync[s_id]);
+
 
                 if (param.nob > 1)
                 {
@@ -247,7 +259,10 @@ int main(int argc, char **argv){
                     if (np_stream[is] > 0)  // only launch kernel if current stream contains particles of this species
                         interpP2G_gpu_launch(part_gpu[is], ids_gpu[is], grd_gpu, np_stream[is], param.tpb, stream[s_id], offset_stream[is]);
                 } 
-                cudaStreamSynchronize(stream[s_id]);  // block further execution until all particles (in stream) have been interpolated to the grid
+                // block further execution until all particles (in stream) have been interpolated to the grid
+                cudaEventRecord(interp_sync[s_id], stream[s_id]);
+                cudaStreamWaitEvent(stream[s_id], interp_sync[s_id]);
+
                 if (s_id == param.n_streams-1)  // stop timer when the last stream finished
                     cudaEventRecord(interp_stop, stream[s_id]);
             }
@@ -312,11 +327,16 @@ int main(int argc, char **argv){
     for (int s_id=0; s_id<param.n_streams; ++s_id)
         cudaStreamDestroy(stream[s_id]); 
 
-    // destroy timer objects
+    // destroy event handles
     cudaEventDestroy(mover_start);
     cudaEventDestroy(mover_stop);
     cudaEventDestroy(interp_start);
     cudaEventDestroy(interp_stop);
+    for (int s_id=0; s_id<param.n_streams; ++s_id)
+    {
+        cudaEventDestroy(mover_sync[s_id]);
+        cudaEventDestroy(interp_sync[s_id]);
+    }
     
     // stop timer
     double iElaps = cpuSecond() - iStart;
