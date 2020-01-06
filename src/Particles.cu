@@ -95,7 +95,7 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
 
     // Fill one batch at a time with particle data
     // *part_batches = new particles[param->nob];
-    cudaMallocHost((void **) part_batches, sizeof(particles)*nob, cudaHostAllocDefault);
+    cudaMallocHost((void **) part_batches, sizeof(particles)*param->nob, cudaHostAllocDefault);
 
     for (int batch_id=0; batch_id<param->nob; ++batch_id) {
         // copy structure, pointers will still point to the same memory address

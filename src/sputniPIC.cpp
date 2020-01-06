@@ -113,6 +113,10 @@ int main(int argc, char **argv){
     // Allocate memory and move data to the GPU
     for (int is=0; is < param.ns; is++)
     {
+        // update relevant scalar values in temporary structure (scalar values will be copied in particle_allocate_gpu())
+        part_tmp[is].qom = part_batches[is][0].qom;
+        part_tmp[is].n_sub_cycles = part_batches[is][0].n_sub_cycles;
+        part_tmp[is].NiterMover = part_batches[is][0].NiterMover;
         particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
         ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
         ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
