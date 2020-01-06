@@ -48,11 +48,14 @@ int main(int argc, char **argv){
     float elapsed = 0.0;
 
     // Use CUDA event timers
-    cudaEvent_t mover_start, mover_stop, interp_start, interp_stop;
-    cudaEventCreate(&mover_start);
-    cudaEventCreate(&mover_stop);
-    cudaEventCreate(&interp_start);
-    cudaEventCreate(&interp_stop);
+    cudaEvent_t mover_start[param.n_streams], mover_stop[param.n_streams], interp_start[param.n_streams], interp_stop[param.n_streams];
+    for (int s_id=0; s_id<param.n_streams; ++s_id)
+    {
+        cudaEventCreate(&mover_start[s_id]);
+        cudaEventCreate(&mover_stop[s_id]);
+        cudaEventCreate(&interp_start[s_id]);
+        cudaEventCreate(&interp_stop[s_id]);
+    }
     
     // Set-up the grid information
     grid grd;
@@ -212,9 +215,7 @@ int main(int argc, char **argv){
 
 
                 // implicit mover
-                if (s_id == 0)  // start timer when the first stream is processed
-                    cudaEventRecord(mover_start, stream[s_id]);
-
+                cudaEventRecord(mover_start[s_id], stream[s_id]);  // start timer
                 // data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
                 if (param.nob > 1 || cycle == 1)
                 {
@@ -245,13 +246,11 @@ int main(int argc, char **argv){
                             particle_move2cpu(&part_tmp[is], &part_batches[is][ib], stream[s_id], offset_stream[is], np_stream[is]);
                     }
                 }
-                if (s_id == param.n_streams-1)  // stop timer when the last stream finished
-                    cudaEventRecord(mover_stop, stream[s_id]);
+                cudaEventRecord(mover_stop[s_id], stream[s_id]);  // stop timer
             
             
                 // interpolation particle to grid
-                if (s_id == 0)  // start timer when the first stream is processed
-                    cudaEventRecord(interp_start, stream[s_id]);
+                cudaEventRecord(interp_start[s_id], stream[s_id]);  // start timer
 
                 // interpolate species
                 for (int is=0; is < param.ns; is++)
@@ -263,16 +262,19 @@ int main(int argc, char **argv){
                 cudaEventRecord(interp_sync[s_id], stream[s_id]);
                 cudaStreamWaitEvent(stream[s_id], interp_sync[s_id], 0);
 
-                if (s_id == param.n_streams-1)  // stop timer when the last stream finished
-                    cudaEventRecord(interp_stop, stream[s_id]);
+                cudaEventRecord(interp_stop[s_id], stream[s_id]);  // stop timer
             }
             // Update timers
-            cudaEventSynchronize(mover_stop);
-            cudaEventElapsedTime(&elapsed, mover_start, mover_stop);
-            eMover += elapsed / 1000.0;
-            cudaEventSynchronize(interp_stop);
-            cudaEventElapsedTime(&elapsed, interp_start, interp_stop);
-            eInterp += elapsed / 1000.0;
+            for (int s_id=0; s_id<param.n_streams; ++s_id)
+            {
+                cudaEventSynchronize(mover_stop[s_id]);
+                cudaEventElapsedTime(&elapsed, mover_start[s_id], mover_stop[s_id]);
+                eMover += elapsed / 1000.0;
+                cudaEventSynchronize(interp_stop[s_id]);
+                cudaEventElapsedTime(&elapsed, interp_start[s_id], interp_stop[s_id]);
+                eInterp += elapsed / 1000.0;
+            }
+            
         }
         iInterp = cpuSecond(); // start timer for the rest of interpolation step
         // Retrieve data from the device
@@ -328,12 +330,12 @@ int main(int argc, char **argv){
         cudaStreamDestroy(stream[s_id]); 
 
     // destroy event handles
-    cudaEventDestroy(mover_start);
-    cudaEventDestroy(mover_stop);
-    cudaEventDestroy(interp_start);
-    cudaEventDestroy(interp_stop);
     for (int s_id=0; s_id<param.n_streams; ++s_id)
     {
+        cudaEventDestroy(mover_start[s_id]);
+        cudaEventDestroy(mover_stop[s_id]);
+        cudaEventDestroy(interp_start[s_id]);
+        cudaEventDestroy(interp_stop[s_id]);
         cudaEventDestroy(mover_sync[s_id]);
         cudaEventDestroy(interp_sync[s_id]);
     }
