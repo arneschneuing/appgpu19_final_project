@@ -217,8 +217,8 @@ struct parameters {
     /** threads per block (for CUDA execution configuration) */
     int tpb;
     
-    /** batchsize */
-    int batchsize;
+    /** number of batches */
+    int nob;
 
     /** number of CUDA streams */
     int n_streams;

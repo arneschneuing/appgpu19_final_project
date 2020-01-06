@@ -60,10 +60,10 @@ void particle_allocate(struct parameters*, struct particles*, int);
 void particle_deallocate(struct particles*);
 
 /** launcher for gpu particle mover */
-int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct parameters*);
+int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct parameters*, int, int, cudaStream_t, long);
 
 /* launcher for GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct grid*, struct parameters*);
+int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct grid*, int, int, cudaStream_t, long);
 
 /**
 * Create batches of particles
@@ -71,7 +71,7 @@ int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct gr
 * @param param Structure containing the simulation parameters
 * @param part Particle structure containing all particles (of one species)
 * @param part_batches Array of particle structures storing the batches after creation
-* @return number of batches
+* @return batchsize
 */
 int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches);
 

@@ -2,7 +2,6 @@
 #include "Alloc.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "GPUAllocation.h"
 #include <stdio.h>
 
 
@@ -88,23 +87,17 @@ void particle_deallocate_pinned(struct particles* part)
     cudaFreeHost(part->q);
 }
 
-/** Compute number of batches */
-int get_nob(int nop, int batchsize)
-{
-    return (nop + batchsize - 1) / batchsize;
-}
-
 /** Create batches of particles */
 int particle_batch_create(struct parameters* param, struct particles* part, struct particles** part_batches)
 {
-    // Compute number of batches
-    int nob = get_nob(part->nop, param->batchsize);
+    // Compute batchsize
+    int batchsize = (part->nop+param->nob-1) / param->nob;  // equivalent to ceil operation
 
     // Fill one batch at a time with particle data
-    // *part_batches = new particles[nob];
+    // *part_batches = new particles[param->nob];
     cudaMallocHost((void **) part_batches, sizeof(particles)*nob, cudaHostAllocDefault);
 
-    for (int batch_id=0; batch_id<nob; ++batch_id) {
+    for (int batch_id=0; batch_id<param->nob; ++batch_id) {
         // copy structure, pointers will still point to the same memory address
         (*part_batches)[batch_id] = *part;
 
@@ -113,19 +106,19 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
         //////////////////////////////////////
 
         // number of particles
-        if (batch_id == nob-1) {
+        if (batch_id == param->nob-1) {
             // Last batch is a special case as it may contain fewer than batchsize particles
-            int batch_remainder = part->nop % param->batchsize;
+            int batch_remainder = part->nop % batchsize;
             if (batch_remainder == 0)
-                (*part_batches)[batch_id].nop = param->batchsize;
+                (*part_batches)[batch_id].nop = batchsize;
             else
                 (*part_batches)[batch_id].nop = batch_remainder;
         }
         else
-            (*part_batches)[batch_id].nop = param->batchsize;
+            (*part_batches)[batch_id].nop = batchsize;
 
         // maximum number of particles
-        long npmax = param->batchsize; // I am not really sure if we can just use the batchsize here... 
+        long npmax = batchsize; // I am not really sure if we can just use the batchsize here... 
         (*part_batches)[batch_id].npmax = npmax;
             
         ///////////////////////
@@ -149,16 +142,16 @@ int particle_batch_create(struct parameters* param, struct particles* part, stru
         cudaMallocHost((void **) &((*part_batches)[batch_id].q), sizeof(FPpart)*npmax, cudaHostAllocDefault);
 
         // Copy the values
-        std::copy((part->x)+batch_id*param->batchsize, (part->x)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
-        std::copy((part->y)+batch_id*param->batchsize, (part->y)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].y);
-        std::copy((part->z)+batch_id*param->batchsize, (part->z)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].z);
-        std::copy((part->u)+batch_id*param->batchsize, (part->u)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].u);
-        std::copy((part->v)+batch_id*param->batchsize, (part->v)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].v);
-        std::copy((part->w)+batch_id*param->batchsize, (part->w)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].w);
-        std::copy((part->q)+batch_id*param->batchsize, (part->q)+batch_id*param->batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].q);
+        std::copy((part->x)+batch_id*batchsize, (part->x)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].x);
+        std::copy((part->y)+batch_id*batchsize, (part->y)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].y);
+        std::copy((part->z)+batch_id*batchsize, (part->z)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].z);
+        std::copy((part->u)+batch_id*batchsize, (part->u)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].u);
+        std::copy((part->v)+batch_id*batchsize, (part->v)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].v);
+        std::copy((part->w)+batch_id*batchsize, (part->w)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].w);
+        std::copy((part->q)+batch_id*batchsize, (part->q)+batch_id*batchsize+(*part_batches)[batch_id].nop, (*part_batches)[batch_id].q);
     }
 
-    return nob;
+    return batchsize;
 }
 
 /** Deallocate particle batches */
@@ -347,68 +340,10 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
 }
 
 /* launch GPU version of the particle mover */
-int mover_PC_gpu_launch(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param)
-{
-    // Copy EMfield struct to device
-    EMfield* field_gpu;
-    emfield_move2gpu(field, &field_gpu, grd);
-
-    // Copy grid struct to device
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-    
-    // Copy parameters struct to device
-    parameters* param_gpu;
-    cudaMalloc(&param_gpu, sizeof(parameters));
-    cudaMemcpy(param_gpu, param, sizeof(parameters), cudaMemcpyHostToDevice);
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Divide the particle data in segments and use streams to overlap data transfer and computation //
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Prepare auxiliary variables
-    long pps = ceil(part->npmax / param->n_streams);  // particles per stream
-    long stream_offset[param->n_streams];             // array segment offset
-    long np_stream[param->n_streams];                 // number of particles in stream
-
-    // Create cuda streams and offsets and assign a number of particles to each stream
-    cudaStream_t stream[param->n_streams];
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {
-        cudaStreamCreate(&stream[s_id]);
-        
-        // Compute offset to specify start of array segments
-        stream_offset[s_id] = s_id * pps;
-
-        // Number of particles in stream is either equal to pps or what is left in the last stream
-        np_stream[s_id] = std::min(pps, part->nop - stream_offset[s_id]); 
-    }
-
-    // Trigger asynchronous copy for each stream
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu, param->n_streams, stream, stream_offset, np_stream);
-
-    // Launch kernels for each stream
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {   
-        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
-        mover_PC_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, field_gpu, grd_gpu, param_gpu, stream_offset[s_id], np_stream[s_id]);
-    }
-
-    // Retrieve data from the device (trigger asynchronous copy)
-    particle_move2cpu(part_gpu, part, param->n_streams, stream, stream_offset, np_stream);
-    
-    // wait for GPU operations to finish and destroy streams
-    cudaDeviceSynchronize();
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {
-        cudaStreamDestroy(stream[s_id]);
-    }
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    emfield_deallocate_gpu(field_gpu);
-    grid_deallocate_gpu(grd_gpu);
-    cudaFree(param_gpu);
+int mover_PC_gpu_launch(struct particles* part_gpu, struct EMfield* field_gpu, struct grid* grd_gpu, struct parameters* param_gpu, int nop, int tpb, cudaStream_t stream, long offset)
+{   
+    // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
+    mover_PC_gpu<<<(nop+tpb-1)/tpb, tpb, 0, stream>>>(part_gpu, field_gpu, grd_gpu, param_gpu, offset, nop);
 
     return 0;
 }
@@ -592,62 +527,10 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
 }
 
 /* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param)
+int interpP2G_gpu_launch(struct particles* part_gpu, struct interpDensSpecies* ids_gpu, struct grid* grd_gpu, int nop, int tpb, cudaStream_t stream, long offset)
 {
-    // Copy interpDensSpecies struct to device
-    interpDensSpecies* ids_gpu;
-    ids_move2gpu(ids, &ids_gpu, grd);
-
-    // Copy grid struct to device
-    grid* grd_gpu;
-    grid_move2gpu(grd, &grd_gpu);
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Divide the particle data in segments and use streams to overlap data transfer and computation //
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Prepare auxiliary variables
-    long pps = ceil(part->npmax / param->n_streams);  // particles per stream
-    long stream_offset[param->n_streams];             // array segment offset
-    long np_stream[param->n_streams];                 // number of particles in stream
-
-    // Create cuda streams and offsets and assign a number of particles to each stream
-    cudaStream_t stream[param->n_streams];
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {
-        cudaStreamCreate(&stream[s_id]);
-        
-        // Compute offset to specify start of array segments
-        stream_offset[s_id] = s_id * pps;
-
-        // Number of particles in stream is either equal to pps or what is left in the last stream
-        np_stream[s_id] = std::min(pps, part->nop - stream_offset[s_id]); 
-    }
-
-    // Trigger asynchronous copy for each stream
-    particles* part_gpu;
-    particle_move2gpu(part, &part_gpu, param->n_streams, stream, stream_offset, np_stream);
-
-    // Launch kernels for each stream
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {
-        // Call kernel (the third execution configuration parameter is 0 because no shared device memory is be allocated)
-        interpP2G_gpu<<<(np_stream[s_id]+param->tpb-1)/param->tpb, param->tpb, 0, stream[s_id]>>>(part_gpu, ids_gpu, grd_gpu, stream_offset[s_id], np_stream[s_id]);
-    }
-
-    // wait for GPU operations to finish and destroy streams
-    cudaDeviceSynchronize();
-    for (int s_id=0; s_id<param->n_streams; ++s_id)
-    {
-        cudaStreamDestroy(stream[s_id]);
-    }
-
-    // Retrieve data from the device
-    ids_move2cpu(ids_gpu, ids, grd);
-
-    // Free the memory
-    particle_deallocate_gpu(part_gpu);
-    ids_deallocate_gpu(ids_gpu);
-    grid_deallocate_gpu(grd_gpu);
+    // Call kernel
+    interpP2G_gpu<<<(nop+tpb-1)/tpb, tpb, 0, stream>>>(part_gpu, ids_gpu, grd_gpu, offset, nop);
 
     return 0;
 }

@@ -62,5 +62,5 @@ PoissonCorrection=true
 # SubCycles
 n_sub_cycles = 1
 
-# Mini-batch size
-batchsize = 1500000
+# Number of mini-batches
+nob = 3
