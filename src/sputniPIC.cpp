@@ -233,7 +233,7 @@ int main(int argc, char **argv){
 
                 // make sure all particles have been moved before continuing
                 cudaEventRecord(mover_sync[s_id], stream[s_id]);
-                cudaStreamWaitEvent(stream[s_id], mover_sync[s_id]);
+                cudaStreamWaitEvent(stream[s_id], mover_sync[s_id], 0);
 
 
                 if (param.nob > 1)
@@ -261,7 +261,7 @@ int main(int argc, char **argv){
                 } 
                 // block further execution until all particles (in stream) have been interpolated to the grid
                 cudaEventRecord(interp_sync[s_id], stream[s_id]);
-                cudaStreamWaitEvent(stream[s_id], interp_sync[s_id]);
+                cudaStreamWaitEvent(stream[s_id], interp_sync[s_id], 0);
 
                 if (s_id == param.n_streams-1)  // stop timer when the last stream finished
                     cudaEventRecord(interp_stop, stream[s_id]);
