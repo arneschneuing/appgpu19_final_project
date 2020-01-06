@@ -44,7 +44,7 @@ int main(int argc, char **argv){
     
     // Timing variables
     double iStart = cpuSecond();
-    double eMover = 0.0, eInterp= 0.0;
+    double iInterp, eMover = 0.0, eInterp= 0.0;
     float elapsed = 0.0;
 
     // Use CUDA event timers
@@ -180,7 +180,7 @@ int main(int argc, char **argv){
                 np_stream[is] = 0;
             }
 
-            for (int s_id=0; s_id<param->n_streams; ++s_id)
+            for (int s_id=0; s_id<param.n_streams; ++s_id)
             {         
                 // Reset helper variable
                 np_stream_free = np_stream_tot[s_id];
@@ -309,10 +309,10 @@ int main(int argc, char **argv){
         cudaStreamDestroy(stream[s_id]); 
 
     // destroy timer objects
-    cudaEventDestroy(&mover_start);
-    cudaEventDestroy(&mover_stop);
-    cudaEventDestroy(&interp_start);
-    cudaEventDestroy(&interp_stop);
+    cudaEventDestroy(mover_start);
+    cudaEventDestroy(mover_stop);
+    cudaEventDestroy(interp_start);
+    cudaEventDestroy(interp_stop);
     
     // stop timer
     double iElaps = cpuSecond() - iStart;
