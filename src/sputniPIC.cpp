@@ -269,10 +269,10 @@ int main(int argc, char **argv){
             // Update timers
             cudaEventSynchronize(mover_stop);
             cudaEventElapsedTime(&elapsed, mover_start, mover_stop);
-            eMover += elapsed;
+            eMover += elapsed / 1000.0;
             cudaEventSynchronize(interp_stop);
             cudaEventElapsedTime(&elapsed, interp_start, interp_stop);
-            eInterp += elapsed;
+            eInterp += elapsed / 1000.0;
         }
         iInterp = cpuSecond(); // start timer for the rest of interpolation step
         // Retrieve data from the device
