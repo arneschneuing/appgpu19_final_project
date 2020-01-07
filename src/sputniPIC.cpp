@@ -44,18 +44,18 @@ int main(int argc, char **argv){
     
     // Timing variables
     double iStart = cpuSecond();
-    double iInterp, eMover = 0.0, eInterp= 0.0;
+    double iInterp, iCPU, eMover = 0.0, eInterp= 0.0, eCPU = 0.0;
     float elapsed = 0.0;
 
-    // Use CUDA event timers
-    cudaEvent_t mover_start[param.n_streams], mover_stop[param.n_streams], interp_start[param.n_streams], interp_stop[param.n_streams];
-    for (int s_id=0; s_id<param.n_streams; ++s_id)
-    {
-        cudaEventCreate(&mover_start[s_id]);
-        cudaEventCreate(&mover_stop[s_id]);
-        cudaEventCreate(&interp_start[s_id]);
-        cudaEventCreate(&interp_stop[s_id]);
-    }
+    // // Use CUDA event timers
+    // cudaEvent_t mover_start[param.n_streams], mover_stop[param.n_streams], interp_start[param.n_streams], interp_stop[param.n_streams];
+    // for (int s_id=0; s_id<param.n_streams; ++s_id)
+    // {
+    //     cudaEventCreate(&mover_start[s_id]);
+    //     cudaEventCreate(&mover_stop[s_id]);
+    //     cudaEventCreate(&interp_start[s_id]);
+    //     cudaEventCreate(&interp_stop[s_id]);
+    // }
     
     // Set-up the grid information
     grid grd;
@@ -189,6 +189,7 @@ int main(int argc, char **argv){
         {
             std::cout << "batch index: " << ib << std::endl;
 
+            iCPU = cpuSecond();
             // Reset helper variables
             for (int is=0; is < param.ns; is++)
             {
@@ -212,6 +213,7 @@ int main(int argc, char **argv){
                         np_stream[is] = np_stream_free;
                     np_stream_free -= np_stream[is];               
                 }
+            eCPU += (cpuSecond() - iCPU);
 
 
                 // implicit mover
@@ -329,16 +331,16 @@ int main(int argc, char **argv){
     for (int s_id=0; s_id<param.n_streams; ++s_id)
         cudaStreamDestroy(stream[s_id]); 
 
-    // destroy event handles
-    for (int s_id=0; s_id<param.n_streams; ++s_id)
-    {
-        cudaEventDestroy(mover_start[s_id]);
-        cudaEventDestroy(mover_stop[s_id]);
-        cudaEventDestroy(interp_start[s_id]);
-        cudaEventDestroy(interp_stop[s_id]);
-        cudaEventDestroy(mover_sync[s_id]);
-        cudaEventDestroy(interp_sync[s_id]);
-    }
+    // // destroy event handles
+    // for (int s_id=0; s_id<param.n_streams; ++s_id)
+    // {
+    //     cudaEventDestroy(mover_start[s_id]);
+    //     cudaEventDestroy(mover_stop[s_id]);
+    //     cudaEventDestroy(interp_start[s_id]);
+    //     cudaEventDestroy(interp_stop[s_id]);
+    //     cudaEventDestroy(mover_sync[s_id]);
+    //     cudaEventDestroy(interp_sync[s_id]);
+    // }
     
     // stop timer
     double iElaps = cpuSecond() - iStart;
@@ -349,6 +351,7 @@ int main(int argc, char **argv){
     std::cout << "   Tot. Simulation Time (s) = " << iElaps << std::endl;
     std::cout << "   Mover Time / Cycle   (s) = " << eMover/param.ncycles << std::endl;
     std::cout << "   Interp. Time / Cycle (s) = " << eInterp/param.ncycles  << std::endl;
+    std::cout << "   CPU Time / Cycle (s) = " << eCPU/param.ncycles  << std::endl;
     std::cout << "**************************************" << std::endl;
     
     // exit
