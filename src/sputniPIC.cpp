@@ -221,7 +221,7 @@ int main(int argc, char **argv){
 
                 // implicit mover
                 cudaEventRecord(mover_start[ib][s_id], stream[s_id]);  // start timer
-                data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
+                // data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
                 if (param.nob > 1 || cycle == 1)
                 {
                     // Move new batch of particles to GPU
@@ -340,17 +340,17 @@ int main(int argc, char **argv){
         cudaStreamDestroy(stream[s_id]); 
 
     // destroy event handles
-    for (int ib=0; ib<param.nob; ++ib)
+    for (int s_id=0; s_id<param.n_streams; ++s_id)
     {
-        for (int s_id=0; s_id<param.n_streams; ++s_id)
+        for (int ib=0; ib<param.nob; ++ib)
         {
             cudaEventDestroy(mover_start[ib][s_id]);
             cudaEventDestroy(mover_stop[ib][s_id]);
             cudaEventDestroy(interp_start[ib][s_id]);
             cudaEventDestroy(interp_stop[ib][s_id]);
-            cudaEventDestroy(mover_sync[ib][s_id]);
-            cudaEventDestroy(interp_sync[ib][s_id]);
         }
+        cudaEventDestroy(mover_sync[s_id]);
+        cudaEventDestroy(interp_sync[s_id]);
     }
     
     // stop timer
