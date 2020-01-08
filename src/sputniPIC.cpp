@@ -320,12 +320,12 @@ int main(int argc, char **argv){
     interp_dens_net_deallocate(&grd,&idn);
     
     // Deallocate interpolated densities and particles
-    cudaFreeHost(ids);
-    cudaFreeHost(part_batches);
     for (int is=0; is < param.ns; is++){
         interp_dens_species_deallocate(&grd,&ids[is]);
         particle_batch_deallocate(part_batches[is], param.nob);
     }
+    cudaFreeHost(ids);
+    cudaFreeHost(part_batches);
 
     // Free GPU memory
     for (int is=0; is < param.ns; is++)
