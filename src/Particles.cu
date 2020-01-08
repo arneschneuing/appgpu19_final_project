@@ -161,6 +161,7 @@ void particle_batch_deallocate(struct particles* part_batches, int nob)
     {
         particle_deallocate_pinned(&part_batches[i]);
     }
+    cudaFreeHost(part_batches);
 }
 
 /** particle mover */
