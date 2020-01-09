@@ -1,6 +1,22 @@
 #include "GPUAllocation.h"
 
 /**
+* Checks if there has been a memory allocation error. 
+* The method will exit the program when an error is found.
+*/
+inline void checkMemAlloc()
+{
+    cudaError_t cudaError = cudaGetLastError();
+    
+    if(cudaError == cudaErrorMemoryAllocation)
+    {
+        printf("The API call failed because it was unable to allocate enough memory to perform the requested operation.\n");
+        printf("Try to increase the number of batches (nob) in the input file!\n");
+        exit(-1);
+    }
+}
+
+/**
 * Allocate GPU memory for particle struct
 * 
 * @param part_tmp particle struct on the host, but pointers will be linked to device addresses
@@ -33,6 +49,9 @@ void particle_allocate_gpu(struct particles* part_tmp, struct particles** part_g
 
     FPinterp* q_gpu;
     cudaMalloc(&q_gpu, sizeof(FPinterp)*npmax);
+
+    // Check if memory allocation was successful
+    checkMemAlloc();
 
     // Point to device pointers in host struct
     part_tmp->x = x_gpu;
