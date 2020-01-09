@@ -1,20 +1,20 @@
 #include "GPUAllocation.h"
 
 /**
- * Checks if there has been a memory allocation error. 
- * The method will exit the program when an error is found.
- */
- inline void checkMemAlloc()
- {
-     cudaError_t cudaError = cudaGetLastError();
-     
-     if(cudaError == cudaErrorMemoryAllocation)
-     {
-         printf("The API call failed because it was unable to allocate enough memory to perform the requested operation.\n
-                Try to increase the number of batches (nob) in the input file!");
-         exit(-1);
-     }
- }
+* Checks if there has been a memory allocation error. 
+* The method will exit the program when an error is found.
+*/
+inline void checkMemAlloc()
+{
+    cudaError_t cudaError = cudaGetLastError();
+    
+    if(cudaError == cudaErrorMemoryAllocation)
+    {
+        printf("The API call failed because it was unable to allocate enough memory to perform the requested operation.\n");
+        printf("Try to increase the number of batches (nob) in the input file!\n");
+        exit(-1);
+    }
+}
 
 /**
 * Allocate GPU memory for particle struct
