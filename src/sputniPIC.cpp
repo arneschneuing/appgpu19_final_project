@@ -101,16 +101,16 @@ int main(int argc, char **argv){
     interpDensSpecies *ids_tmp = new interpDensSpecies[param.ns];  // container to make device pointers accessible from the host
     
     // Allocate memory and move data to the GPU
-    for (int is=0; is < param.ns; is++)
-    {
-        particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
-        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
-        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
-    }  
     emfield_move2gpu(&field, &field_gpu, &grd);
     grid_move2gpu(&grd, &grd_gpu);
     cudaMalloc(&param_gpu, sizeof(parameters));
     cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
+    for (int is=0; is < param.ns; is++)
+    {
+        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
+        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
+        particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
+    }    
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
