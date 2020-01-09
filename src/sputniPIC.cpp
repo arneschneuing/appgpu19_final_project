@@ -117,20 +117,20 @@ int main(int argc, char **argv){
     interpDensSpecies *ids_tmp = new interpDensSpecies[param.ns];  // container to make device pointers accessible from the host
     
     // Allocate memory and move data to the GPU
+    emfield_move2gpu(&field, &field_gpu, &grd);
+    grid_move2gpu(&grd, &grd_gpu);
+    cudaMalloc(&param_gpu, sizeof(parameters));
+    cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
     for (int is=0; is < param.ns; is++)
     {
+        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
+        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
         // update relevant scalar values in temporary structure (scalar values will be copied in particle_allocate_gpu())
         part_tmp[is].qom = part_batches[is][0].qom;
         part_tmp[is].n_sub_cycles = part_batches[is][0].n_sub_cycles;
         part_tmp[is].NiterMover = part_batches[is][0].NiterMover;
         particle_allocate_gpu(&part_tmp[is], &part_gpu[is], batchsize[is]);
-        ids_tmp[is].species_ID = ids[is].species_ID;  // copy species ID for the sake of completeness
-        ids_allocate_gpu(&ids_tmp[is], &ids_gpu[is], &grd);
     }  
-    emfield_move2gpu(&field, &field_gpu, &grd);
-    grid_move2gpu(&grd, &grd_gpu);
-    cudaMalloc(&param_gpu, sizeof(parameters));
-    cudaMemcpy(param_gpu, &param, sizeof(parameters), cudaMemcpyHostToDevice);
 
     /////////////////////////////////////////////////////////////////////////////////
     // Prepare streams for concurrency (overlapping data transfer and computation) //
