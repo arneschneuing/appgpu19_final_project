@@ -336,8 +336,8 @@ void ids_allocate_gpu(struct interpDensSpecies* ids_tmp, struct interpDensSpecie
     FPinterp* rhon_flat_gpu;
     cudaMalloc(&rhon_flat_gpu, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn);
 
-    FPinterp* rhoc_flat_gpu;
-    cudaMalloc(&rhoc_flat_gpu, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn);
+    // FPinterp* rhoc_flat_gpu;
+    // cudaMalloc(&rhoc_flat_gpu, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn);
 
     FPinterp* Jx_flat_gpu;
     cudaMalloc(&Jx_flat_gpu, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn);
@@ -368,7 +368,7 @@ void ids_allocate_gpu(struct interpDensSpecies* ids_tmp, struct interpDensSpecie
 
     // Point to device pointers in host struct
     ids_tmp->rhon_flat = rhon_flat_gpu;
-    ids_tmp->rhoc_flat = rhoc_flat_gpu;
+    // ids_tmp->rhoc_flat = rhoc_flat_gpu;
     ids_tmp->Jx_flat = Jx_flat_gpu;
     ids_tmp->Jy_flat = Jy_flat_gpu;
     ids_tmp->Jz_flat = Jz_flat_gpu;
@@ -394,7 +394,7 @@ void ids_move2gpu(struct interpDensSpecies* ids, struct interpDensSpecies* ids_t
 {   
     // Copy array values to the device
     cudaMemcpy(ids_tmp->rhon_flat, ids->rhon_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice);    
-    cudaMemcpy(ids_tmp->rhoc_flat, ids->rhoc_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice); 
+    // cudaMemcpy(ids_tmp->rhoc_flat, ids->rhoc_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice); 
     cudaMemcpy(ids_tmp->Jx_flat, ids->Jx_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice); 
     cudaMemcpy(ids_tmp->Jy_flat, ids->Jy_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice); 
     cudaMemcpy(ids_tmp->Jz_flat, ids->Jz_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyHostToDevice); 
@@ -417,7 +417,7 @@ void ids_move2cpu(struct interpDensSpecies* ids_tmp, struct interpDensSpecies* i
 {    
     // move arrays
     cudaMemcpy(ids->rhon_flat, ids_tmp->rhon_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
-    cudaMemcpy(ids->rhoc_flat, ids_tmp->rhoc_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
+    // cudaMemcpy(ids->rhoc_flat, ids_tmp->rhoc_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
     cudaMemcpy(ids->Jx_flat, ids_tmp->Jx_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
     cudaMemcpy(ids->Jy_flat, ids_tmp->Jy_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
     cudaMemcpy(ids->Jz_flat, ids_tmp->Jz_flat, sizeof(FPinterp) * grd->nxn * grd->nyn * grd->nzn, cudaMemcpyDeviceToHost);
@@ -438,7 +438,7 @@ void ids_deallocate_gpu(struct interpDensSpecies* ids_gpu)
 
     // deallocate variables
     cudaFree(ids_tmp->rhon_flat);
-    cudaFree(ids_tmp->rhoc_flat);
+    // cudaFree(ids_tmp->rhoc_flat);
     cudaFree(ids_tmp->Jx_flat);
     cudaFree(ids_tmp->Jy_flat);
     cudaFree(ids_tmp->Jz_flat);
