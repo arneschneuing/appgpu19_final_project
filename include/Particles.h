@@ -59,11 +59,8 @@ void particle_allocate(struct parameters*, struct particles*, int);
 /** deallocate */
 void particle_deallocate(struct particles*);
 
-/** launcher for gpu particle mover */
-int mover_PC_gpu_launch(struct particles*, struct EMfield*, struct grid*, struct parameters*, int, int, cudaStream_t, long);
-
-/* launcher for GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles*, struct interpDensSpecies*, struct grid*, int, int, cudaStream_t, long);
+/* launch CUDA kernel to perform a single step of the simplified particle-in-cell (PIC) method */
+int simple_pic_step_launch(struct particles*, struct EMfield*, struct interpDensSpecies*, struct grid*, struct parameters*, int, int, cudaStream_t, long);
 
 /**
 * Create batches of particles

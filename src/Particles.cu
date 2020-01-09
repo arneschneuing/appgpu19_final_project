@@ -164,45 +164,58 @@ void particle_batch_deallocate(struct particles* part_batches, int nob)
     cudaFreeHost(part_batches);
 }
 
-/** particle mover */
+/** Simplified PIC step: moves particles and performs particle-to-grid interpolation */
 __global__
-void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param, long offset, long num_elem)
+void simple_pic_step(struct particles* part, struct EMfield* field, struct interpDensSpecies* ids, struct grid* grd, struct parameters* param, long offset, long num_elem)
 {
     // get thread ID
     int id = blockIdx.x * blockDim.x + threadIdx.x;
 
     // add offset to get global particle ID
     id = offset + id;
+
+    // only process valid particles
+    if (id < offset + num_elem){
+
+        ///////////////////////
+        // Declare variables //
+        ///////////////////////
+            
+        // auxiliary variables
+        FPpart dt_sub_cycling = (FPpart) param->dt/((double) part->n_sub_cycles);
+        FPpart dto2 = .5*dt_sub_cycling, qomdt2 = part->qom*dto2/param->c;
+        FPpart omdtsq, denom, ut, vt, wt, udotb;
         
-    // auxiliary variables
-    FPpart dt_sub_cycling = (FPpart) param->dt/((double) part->n_sub_cycles);
-    FPpart dto2 = .5*dt_sub_cycling, qomdt2 = part->qom*dto2/param->c;
-    FPpart omdtsq, denom, ut, vt, wt, udotb;
+        // local (to the particle) electric and magnetic field
+        FPfield Exl=0.0, Eyl=0.0, Ezl=0.0, Bxl=0.0, Byl=0.0, Bzl=0.0;
+        
+        
+        // index of the cell
+        int ix, iy, iz;
+        
+        // intermediate particle position and velocity
+        FPpart xptilde, yptilde, zptilde, uptilde, vptilde, wptilde;
+
+        // arrays needed for interpolation
+        FPpart weight[2][2][2];
+        FPpart temp[2][2][2];
+        FPpart xi[2], eta[2], zeta[2];
+
+        ////////////////
+        // Mover step //
+        ////////////////
     
-    // local (to the particle) electric and magnetic field
-    FPfield Exl=0.0, Eyl=0.0, Ezl=0.0, Bxl=0.0, Byl=0.0, Bzl=0.0;
-    
-    // interpolation densities
-    int ix,iy,iz;
-    FPfield weight[2][2][2];
-    FPfield xi[2], eta[2], zeta[2];
-    
-    // intermediate particle position and velocity
-    FPpart xptilde, yptilde, zptilde, uptilde, vptilde, wptilde;
-    
-    // start subcycling
-    for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
-        // move each particle with new fields
-        if (id < offset + num_elem){
+        // start subcycling
+        for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
             xptilde = part->x[id];
             yptilde = part->y[id];
             zptilde = part->z[id];
             // calculate the average velocity iteratively
             for(int innter=0; innter < part->NiterMover; innter++){
                 // interpolation G-->P
-                ix = 2 +  int((part->x[id] - grd->xStart)*grd->invdx);
-                iy = 2 +  int((part->y[id] - grd->yStart)*grd->invdy);
-                iz = 2 +  int((part->z[id] - grd->zStart)*grd->invdz);
+                ix = 2 + int((part->x[id] - grd->xStart)*grd->invdx);
+                iy = 2 + int((part->y[id] - grd->yStart)*grd->invdy);
+                iz = 2 + int((part->z[id] - grd->zStart)*grd->invdz);
                 
                 // calculate weights
                 // xi[0]   = part->x[id] - grd->XN[ix - 1][iy][iz];
@@ -331,49 +344,22 @@ void mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* gr
                     part->z[id] = -part->z[id];
                 }
             }
-                                                                        
-            
-            
+                       
         }  // end of subcycling
-    } // end of one particle
-                                                                        
-    return; // exit
-}
-
-/* launch GPU version of the particle mover */
-int mover_PC_gpu_launch(struct particles* part_gpu, struct EMfield* field_gpu, struct grid* grd_gpu, struct parameters* param_gpu, int nop, int tpb, cudaStream_t stream, long offset)
-{   
-    // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
-    mover_PC_gpu<<<(nop+tpb-1)/tpb, tpb, 0, stream>>>(part_gpu, field_gpu, grd_gpu, param_gpu, offset, nop);
-
-    return 0;
-}
 
 
-/** Interpolation Particle --> Grid: This is for species */
-__global__
-void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct grid* grd, long offset, long num_elem)
-{ 
-    // get thread ID
-    int id = blockIdx.x * blockDim.x + threadIdx.x;
+        ////////////////////
+        // interpP2G step //
+        ////////////////////
 
-    // add offset to get global particle ID
-    id = offset + id;
-
-    // arrays needed for interpolation
-    FPpart weight[2][2][2];
-    FPpart temp[2][2][2];
-    FPpart xi[2], eta[2], zeta[2];
-    
-    // index of the cell
-    int ix, iy, iz;
-     
-    if (id < offset + num_elem) {
-
-        // determine cell: can we change to int()? is it faster?
-        ix = 2 + int (floor((part->x[id] - grd->xStart) * grd->invdx));
-        iy = 2 + int (floor((part->y[id] - grd->yStart) * grd->invdy));
-        iz = 2 + int (floor((part->z[id] - grd->zStart) * grd->invdz));
+        //// determine cell: can we change to int()? is it faster?
+        // ix = 2 + int (floor((part->x[id] - grd->xStart) * grd->invdx));
+        // iy = 2 + int (floor((part->y[id] - grd->yStart) * grd->invdy));
+        // iz = 2 + int (floor((part->z[id] - grd->zStart) * grd->invdz));
+        // determine cell
+        ix = 2 + int((part->x[id] - grd->xStart)*grd->invdx);
+        iy = 2 + int((part->y[id] - grd->yStart)*grd->invdy);
+        iz = 2 + int((part->z[id] - grd->zStart)*grd->invdz);
         
         // distances from node
         // xi[0]   = part->x[id] - grd->XN[ix - 1][iy][iz];
@@ -523,15 +509,16 @@ void interpP2G_gpu(struct particles* part, struct interpDensSpecies* ids, struct
                     // ids->pzz_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)] += temp[ii][jj][kk] * grd->invVOL;
                     atomicAdd(&(ids->pzz_flat[get_idx(ix-ii, iy-jj, iz-kk, grd->nyn, grd->nzn)]), temp[ii][jj][kk] * grd->invVOL);
     
-    }
-   
+    } // end of particle
+                                                                        
+    return; // exit
 }
 
-/* launch GPU version of the P2G interpolation */
-int interpP2G_gpu_launch(struct particles* part_gpu, struct interpDensSpecies* ids_gpu, struct grid* grd_gpu, int nop, int tpb, cudaStream_t stream, long offset)
-{
-    // Call kernel
-    interpP2G_gpu<<<(nop+tpb-1)/tpb, tpb, 0, stream>>>(part_gpu, ids_gpu, grd_gpu, offset, nop);
+/* launch CUDA kernel to perform a single step of the simplified particle-in-cell (PIC) method */
+int simple_pic_step_launch(struct particles* part_gpu, struct EMfield* field_gpu, struct interpDensSpecies* ids_gpu, struct grid* grd_gpu, struct parameters* param_gpu, int nop, int tpb, cudaStream_t stream, long offset)
+{   
+    // Call kernel (the third execution configuration parameter is 0 because no shared device memory is allocated)
+    simple_pic_step<<<(nop+tpb-1)/tpb, tpb, 0, stream>>>(part_gpu, field_gpu, ids_gpu, grd_gpu, param_gpu, offset, nop);
 
     return 0;
 }
