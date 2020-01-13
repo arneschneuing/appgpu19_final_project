@@ -210,8 +210,8 @@ int main(int argc, char **argv){
             {  
                 for (int is=0; is < param.ns; is++)
                 {
-                    if (np_stream[is] > 0)  // only launch kernel if current stream contains particles of this species
-                        simple_pic_step_launch(part_gpu[is], field_gpu, ids_gpu[is], grd_gpu, param_gpu, np_stream[is], param.tpb, stream[s_id], offset_stream[is]);
+                    if (np_stream[s_id][is] > 0)  // only launch kernel if current stream contains particles of this species
+                        simple_pic_step_launch(part_gpu[is], field_gpu, ids_gpu[is], grd_gpu, param_gpu, np_stream[s_id][is], param.tpb, stream[s_id], offset_stream[s_id][is]);
                 }
             }
 
