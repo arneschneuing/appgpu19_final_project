@@ -124,21 +124,21 @@ int main(int argc, char **argv){
     /////////////////////////////////////////////////////////////////////////////////
     long np_stream_tot[param.n_streams];  // total number of particles in stream
     long np_stream_free;  // remaining number of particles in stream (temporary variable to fill one stream with multiple species)
-    long np_stream[param.ns];  // number of particles in current stream for each species
-    long offset_stream[param.ns];  // particle offset for each species
+    long np_stream[param.n_streams][param.ns];  // number of particles in stream for each species
+    long offset_stream[param.n_streams][param.ns];  // particle offset for each species
     long nop_remaining;  // remaining particles of one species (helper variable)
 
-    // Calculate total number of particles (all species)
+    // Calculate total number of particles per batch (all species)
     long np_tot = 0;
     for (int is=0; is < param.ns; is++)
-        np_tot += param.np[is];
+        np_tot += batchsize[is];
 
     // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[param.n_streams];
     long pps = (np_tot+param.n_streams-1) / param.n_streams;  // particles per stream
     for (int s_id=0; s_id<param.n_streams; ++s_id)
     {
-        cudaStreamCreate(&stream[s_id]);
+        cudaStreamCreate(&(stream[s_id]));
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
         if (s_id == param.n_streams-1)
@@ -169,13 +169,6 @@ int main(int argc, char **argv){
         {
             std::cout << "batch index: " << ib << std::endl;
 
-            // Reset helper variables
-            for (int is=0; is < param.ns; is++)
-            {
-                offset_stream[is] = 0;
-                np_stream[is] = 0;
-            }
-
             for (int s_id=0; s_id<param.n_streams; ++s_id)
             {         
                 // Reset helper variable
@@ -184,40 +177,53 @@ int main(int argc, char **argv){
                 // Compute offset and number of particles in stream for each species
                 for (int is=0; is < param.ns; is++)
                 {
-                    offset_stream[is] += np_stream[is];  // new offset = old offset + #particles in last stream
-                    nop_remaining = part_batches[is][ib].nop - offset_stream[is];
-                    if (nop_remaining <= np_stream_free)  // all remaining particles of one species fit into the stream
-                        np_stream[is] = nop_remaining;                        
+                    if (s_id == 0)
+                        offset_stream[s_id][is] = 0;
                     else
-                        np_stream[is] = np_stream_free;
-                    np_stream_free -= np_stream[is];               
+                        offset_stream[s_id][is] = offset_stream[s_id-1][is] + np_stream[s_id-1][is];  // new offset = old offset + #particles in last stream
+                    nop_remaining = part_batches[is][ib].nop - offset_stream[s_id][is];
+                    if (nop_remaining <= np_stream_free)  // all remaining particles of one species fit into the stream
+                        np_stream[s_id][is] = nop_remaining;                        
+                    else
+                        np_stream[s_id][is] = np_stream_free;
+                    np_stream_free -= np_stream[s_id][is];            
                 }
+            }
 
+            // move particle data to GPU
+            for (int s_id=0; s_id<param.n_streams; ++s_id)
+            {
                 // data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
                 if (param.nob > 1 || cycle == 1)
                 {
                     // Move new batch of particles to GPU
                     for (int is=0; is < param.ns; is++)
                     {
-                        if (np_stream[is] > 0)
-                            particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is], stream[s_id], offset_stream[is], np_stream[is]);
+                        if (np_stream[s_id][is] > 0)
+                            particle_move2gpu(&part_batches[is][ib], &part_tmp[is], &part_gpu[is], stream[s_id], offset_stream[s_id][is], np_stream[s_id][is]);
                     }         
                 }
+            }
 
-                // Launch combined kernel for particle updates and grid interpolation
+            // Launch combined kernel for particle updates and grid interpolation
+            for (int s_id=0; s_id<param.n_streams; ++s_id)
+            {  
                 for (int is=0; is < param.ns; is++)
                 {
                     if (np_stream[is] > 0)  // only launch kernel if current stream contains particles of this species
                         simple_pic_step_launch(part_gpu[is], field_gpu, ids_gpu[is], grd_gpu, param_gpu, np_stream[is], param.tpb, stream[s_id], offset_stream[is]);
                 }
+            }
 
+            // Retrieve particle mover result
+            for (int s_id=0; s_id<param.n_streams; ++s_id)
+            {
                 if (param.nob > 1)
                 {
-                    // Retrieve particle mover result
                     for (int is=0; is < param.ns; is++)
                     {
-                        if (np_stream[is] > 0)
-                            particle_move2cpu(&part_tmp[is], &part_batches[is][ib], stream[s_id], offset_stream[is], np_stream[is]);
+                        if (np_stream[s_id][is] > 0)
+                            particle_move2cpu(&part_tmp[is], &part_batches[is][ib], stream[s_id], offset_stream[s_id][is], np_stream[s_id][is]);
                     }
                 }            
             }
