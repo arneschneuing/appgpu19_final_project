@@ -222,7 +222,7 @@ int main(int argc, char **argv){
             for (int s_id=0; s_id<param.n_streams; ++s_id)
             {
                 // implicit mover
-                cudaEventRecord(mover_start[ib][s_id], stream[s_id]);  // start timer
+                //cudaEventRecord(mover_start[ib][s_id], stream[s_id]);  // start timer
                 // data movement can be reduced if all particles fit in GPU memory (by transferring only in the first cycle)
                 if (param.nob > 1 || cycle == 1)
                 {
@@ -258,13 +258,13 @@ int main(int argc, char **argv){
                             particle_move2cpu(&part_tmp[is], &part_batches[is][ib], stream[s_id], offset_stream[s_id][is], np_stream[s_id][is]);
                     }
                 }
-                cudaEventRecord(mover_stop[ib][s_id], stream[s_id]);  // stop timer
+                //cudaEventRecord(mover_stop[ib][s_id], stream[s_id]);  // stop timer
             }
             
             for (int s_id=0; s_id<param.n_streams; ++s_id)
             {
                 // interpolation particle to grid
-                cudaEventRecord(interp_start[ib][s_id], stream[s_id]);  // start timer
+                //cudaEventRecord(interp_start[ib][s_id], stream[s_id]);  // start timer
 
                 // interpolate species
                 for (int is=0; is < param.ns; is++)
@@ -276,7 +276,7 @@ int main(int argc, char **argv){
                 // cudaEventRecord(interp_sync[s_id], stream[s_id]);
                 // cudaStreamWaitEvent(stream[s_id], interp_sync[s_id], 0);
 
-                cudaEventRecord(interp_stop[ib][s_id], stream[s_id]);  // stop timer
+                //cudaEventRecord(interp_stop[ib][s_id], stream[s_id]);  // stop timer
             }
             
         }
