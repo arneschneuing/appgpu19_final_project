@@ -196,18 +196,16 @@ int main(int argc, char **argv){
             iCPU = cpuSecond(); 
             for (int s_id=0; s_id<param.n_streams; ++s_id)
             {        
-                // Reset helper variables
+                // Reset helper variable
                 np_stream_free = np_stream_tot[s_id];
-                for (int is=0; is < param.ns; is++)
-                {
-                    offset_stream[s_id][is] = 0;
-                    np_stream[s_id][is] = 0;
-                }
 
                 // Compute offset and number of particles in stream for each species
                 for (int is=0; is < param.ns; is++)
                 {
-                    offset_stream[s_id][is] += np_stream[s_id][is];  // new offset = old offset + #particles in last stream
+                    if (s_id == 0)
+                        offset_stream[s_id][is] = 0;
+                    else
+                        offset_stream[s_id][is] = offset_stream[s_id-1][is] + np_stream[s_id-1][is];  // new offset = old offset + #particles in last stream
                     nop_remaining = part_batches[is][ib].nop - offset_stream[s_id][is];
                     if (nop_remaining <= np_stream_free)  // all remaining particles of one species fit into the stream
                         np_stream[s_id][is] = nop_remaining;                        
