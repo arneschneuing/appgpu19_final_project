@@ -141,17 +141,18 @@ int main(int argc, char **argv){
     long offset_stream[param.ns];  // particle offset for each species
     long nop_remaining;  // remaining particles of one species (helper variable)
 
-    // Calculate total number of particles (all species)
+    // Calculate total number of particles per batch (all species)
     long np_tot = 0;
     for (int is=0; is < param.ns; is++)
-        np_tot += param.np[is];
+        // np_tot += param.np[is];
+        np_tot += batchsize[is];
 
     // Create cuda streams and offsets and assign a number of particles to each stream
     cudaStream_t stream[param.n_streams];
     long pps = (np_tot+param.n_streams-1) / param.n_streams;  // particles per stream
     for (int s_id=0; s_id<param.n_streams; ++s_id)
     {
-        cudaStreamCreate(&stream[s_id]);
+        cudaStreamCreate(&(stream[s_id]));
 
         // Number of particles in stream is either equal to pps or what is left in the last stream
         if (s_id == param.n_streams-1)
@@ -214,7 +215,10 @@ int main(int argc, char **argv){
                         np_stream[is] = nop_remaining;                        
                     else
                         np_stream[is] = np_stream_free;
-                    np_stream_free -= np_stream[is];               
+                    np_stream_free -= np_stream[is];     
+                    // debug output
+                    std::cout << "species: " << is << ", np_stream: " << np_stream[is] << ", offset: " << offset_stream[is]  << ", nop_remaining: " << nop_remaining << std::endl;
+                    std::cout << "np_stream_free: " << np_stream_free << std::endl;        
                 }
                 eCPU += (cpuSecond() - iCPU);
 
